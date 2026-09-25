@@ -181,9 +181,23 @@ def _smart_type(text: str, clear_first: bool = True) -> str:
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
     _require_pyautogui()
     if x is not None and y is not None:
-        pyautogui.click(x, y, button=button, clicks=clicks)
+        pyautogui.moveTo(x, y)
+    
+    if _get_os() == "windows":
+        import ctypes
+        import time
+        down = 0x0002 if button == "left" else 0x0008
+        up   = 0x0004 if button == "left" else 0x0010
+        for _ in range(clicks):
+            ctypes.windll.user32.mouse_event(down, 0, 0, 0, 0)
+            time.sleep(0.05)
+            ctypes.windll.user32.mouse_event(up, 0, 0, 0, 0)
+            time.sleep(0.05)
+    else:
+        pyautogui.click(button=button, clicks=clicks)
+
+    if x is not None and y is not None:
         return f"{'Double-c' if clicks == 2 else 'C'}licked ({x}, {y}) [{button}]"
-    pyautogui.click(button=button, clicks=clicks)
     return f"Clicked at current position [{button}]"
 
 

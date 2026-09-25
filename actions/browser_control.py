@@ -533,7 +533,7 @@ class _BrowserSession:
 
         if engine_name == "firefox":
             profile = _firefox_profile_dir() or str(
-                Path.home() / ".jarvis_profiles" / "firefox"
+                Path.home() / ".paris_profiles" / "firefox"
             )
             kwargs: dict = {
                 "headless":    False,
@@ -805,7 +805,7 @@ class _BrowserSession:
     async def screenshot(self, path: str = None) -> str:
         page = await self._get_page()
         try:
-            save_path = path or str(Path.home() / "Desktop" / "jarvis_screenshot.png")
+            save_path = path or str(Path.home() / "Desktop" / "paris_screenshot.png")
             await page.screenshot(path=save_path, full_page=False)
             return f"Screenshot saved: {save_path}"
         except Exception as e:

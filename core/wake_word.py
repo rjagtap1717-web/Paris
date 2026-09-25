@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Callable
 
 # Pretrained openwakeword model that listens for wake word.
-WAKE_MODEL = "hey_jarvis"
+WAKE_MODEL = "hey_paris"
 # Score in [0,1]; above this counts as a detection. Tunable per environment.
 DEFAULT_THRESHOLD = 0.5
 # Mic frames arrive at 16 kHz int16; this is just the detector's input rate.
@@ -189,7 +189,7 @@ class WakeWordDetector:
                 if isinstance(scores, dict):
                     # match the model regardless of exact key suffix
                     for k, v in scores.items():
-                        if "jarvis" in k.lower() or "paris" in k.lower() or WAKE_MODEL.lower() in k.lower():
+                        if "paris" in k.lower() or "paris" in k.lower() or WAKE_MODEL.lower() in k.lower():
                             score = max(score, float(v))
                     if score == 0.0 and scores:
                         score = max(float(v) for v in scores.values())
