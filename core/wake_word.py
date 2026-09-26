@@ -27,7 +27,7 @@ from typing import Callable
 # Pretrained openwakeword model that listens for wake word.
 WAKE_MODEL = "hey_jarvis"
 # Score in [0,1]; above this counts as a detection. Tunable per environment.
-DEFAULT_THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.8
 # Mic frames arrive at 16 kHz int16; this is just the detector's input rate.
 SAMPLE_RATE = 16000
 
@@ -194,11 +194,17 @@ class WakeWordDetector:
                 scores = self._model.predict(np.asarray(frame, dtype=np.int16))
                 score = 0.0
                 if isinstance(scores, dict):
-                    # match the model regardless of exact key suffix
+                    # match the model regardless of exact key suffix, spaces, or underscores
+                    wake_target = WAKE_MODEL.lower().replace("_", " ")
+                    wake_target2 = WAKE_MODEL.lower().replace(" ", "_")
                     for k, v in scores.items():
-                        if "paris" in k.lower() or "paris" in k.lower() or WAKE_MODEL.lower() in k.lower():
+                        kl = k.lower()
+                        if "paris" in kl or wake_target in kl or wake_target2 in kl:
                             score = max(score, float(v))
-                    if score == 0.0 and scores:
+                    
+                    # If we still haven't found it, just use the highest score.
+                    # But ONLY if the dict has exactly one key (meaning it's definitely our wake model).
+                    if score == 0.0 and len(scores) == 1:
                         score = max(float(v) for v in scores.values())
                 if score >= self._threshold:
                     # drain any backlog so we don't double-fire on the same utterance

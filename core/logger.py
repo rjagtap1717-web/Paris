@@ -37,6 +37,11 @@ class OutputRedirector:
     def flush(self):
         self.original_stream.flush()
 
+    def isatty(self):
+        if hasattr(self.original_stream, 'isatty'):
+            return self.original_stream.isatty()
+        return False
+
 def setup_logging():
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
     
