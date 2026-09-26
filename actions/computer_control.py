@@ -17,7 +17,7 @@ from pathlib import Path
 
 try:
     import pyautogui
-    pyautogui.FAILSAFE = True
+    pyautogui.FAILSAFE = False
     pyautogui.PAUSE    = 0.05
     _PYAUTOGUI = True
 except ImportError:

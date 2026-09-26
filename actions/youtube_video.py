@@ -64,12 +64,29 @@ def _get_api_key() -> str:
 
 def _open_url(url: str) -> None:
     try:
-        if is_mac():
-            subprocess.Popen(["open", url])
+        if is_windows():
+            try:
+                import uiautomation as auto
+                import pyautogui
+                chrome = auto.WindowControl(ClassName="Chrome_WidgetWin_1")
+                if chrome.Exists(0, 0):
+                    yt_tab = chrome.TabItemControl(searchDepth=5, RegexName="(?i).*YouTube.*")
+                    if yt_tab.Exists(0, 0):
+                        yt_tab.Click()
+                        chrome.SetFocus()
+                        time.sleep(0.2)
+                        pyautogui.hotkey("ctrl", "l")
+                        time.sleep(0.1)
+                        pyautogui.write(url)
+                        pyautogui.press("enter")
+                        return
+            except Exception as e:
+                print(f"[YouTube] ⚠️ Chrome Tab reuse failed: {e}")
+            subprocess.Popen(["start", "chrome", url], shell=True)
+        elif is_mac():
+            subprocess.Popen(["open", "-a", "Google Chrome", url])
         elif is_linux():
-            subprocess.Popen(["xdg-open", url])
-        else:
-            subprocess.Popen(["cmd", "/c", "start", "", url], shell=False)
+            subprocess.Popen(["google-chrome", url])
     except Exception as e:
         print(f"[YouTube] ⚠️ open_url failed: {e}")
 

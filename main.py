@@ -635,6 +635,8 @@ class ParisLive:
         self._wake_enabled     = get_wake_word_enabled()
         self._awake            = not self._wake_enabled
         self._wake_detector: WakeWordDetector | None = None
+        self._mic_rolling_buffer = []
+        self._ensure_wake_detector()
         self._wake_sleep_timeout = WAKE_SLEEP_TIMEOUT
 
         # Restore the saved push-to-talk preference. Doing it here rather than
@@ -678,6 +680,17 @@ class ParisLive:
 
     def wake(self, reason: str = "wake word") -> None:
         if self._awake:
+            with self._speaking_lock:
+                is_speaking = self._is_speaking
+            if is_speaking:
+                print(f"[PARIS] 🛑 Interrupted by Wake Word!")
+                self.interrupt()
+                if hasattr(self, "_mic_rolling_buffer") and hasattr(self, "out_queue") and getattr(self, "_loop", None):
+                    for chunk in list(self._mic_rolling_buffer):
+                        self._loop.call_soon_threadsafe(
+                            self.out_queue.put_nowait,
+                            {"data": chunk, "mime_type": "audio/pcm"}
+                        )
             return
         self._awake = True
         self._last_user_speech = time.monotonic()   # start the auto-sleep clock now
@@ -1523,6 +1536,11 @@ class ParisLive:
         barge_in_count = [0]
 
         def callback(indata, frames, time_info, status):
+            if hasattr(self, "_mic_rolling_buffer"):
+                self._mic_rolling_buffer.append(indata.tobytes())
+                if len(self._mic_rolling_buffer) > 15:
+                    self._mic_rolling_buffer.pop(0)
+
             # ── Wake-word gate ───────────────────────────────────────────────
             # While asleep, the mic audio NEVER goes to Gemini (nothing is
             # streamed, so PARIS can't respond to speech not addressed to it and
@@ -1549,21 +1567,10 @@ class ParisLive:
             # that a cough or a keystroke cannot trigger it.
             if paris_speaking:
                 # Nothing is streamed while PARIS talks.
-                #
-                # Interrupting by voice: `EchoGuard` can pick a
-                # user out from under our own echo, and `core/echo.py` still does
-                # that for the tail below.
-                try:
-                    if self._echo.is_user_speech(indata, SEND_SAMPLE_RATE, _pcm_level(indata)):
-                        barge_in_count[0] += 1
-                        if barge_in_count[0] >= self._echo.required_blocks:
-                            barge_in_count[0] = 0
-                            print("[PARIS] 🛑 Barge-in triggered by voice!")
-                            loop.call_soon_threadsafe(self.interrupt)
-                    else:
-                        barge_in_count[0] = 0
-                except Exception:
-                    barge_in_count[0] = 0
+                # User wants to interrupt ONLY by saying "Hey Paris"
+                det = self._wake_detector
+                if det is not None:
+                    det.feed(indata)
                 return
             
             barge_in_count[0] = 0
