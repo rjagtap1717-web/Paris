@@ -1,8 +1,9 @@
 import os
 from pathlib import Path
 
-def read_logs(lines: int = 50) -> str:
+def read_logs(parameters=None, **kwargs) -> str:
     """Read the last N lines of the Paris debug log to diagnose issues."""
+    lines = (parameters or {}).get("lines", 50)
     log_path = Path(__file__).resolve().parent.parent / "logs" / "paris_debug.log"
     if not log_path.exists():
         return "Log file not found."
