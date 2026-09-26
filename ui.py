@@ -2921,6 +2921,7 @@ class MainWindow(QMainWindow):
     _log_sig        = pyqtSignal(str)
     _state_sig      = pyqtSignal(str)
     _content_sig    = pyqtSignal(str, str)   # (title, text) — thread-safe content display
+    _holo_sig       = pyqtSignal(str, str)   # (title, text) — holographic popup
     _reconfig_sig   = pyqtSignal()           # trigger setup overlay from any thread
     _camera_sig     = pyqtSignal(bytes)      # show camera frame preview (small overlay)
     _cam_stream_sig = pyqtSignal(bool)       # True=start live stream, False=stop
@@ -2936,6 +2937,7 @@ class MainWindow(QMainWindow):
     def __init__(self, face_path: str):
         super().__init__()
         self._face_path = face_path
+        self._active_holos = []
 
         # Load customization from config
         _cfg = _read_full_config()
@@ -3080,6 +3082,7 @@ class MainWindow(QMainWindow):
         self._log_sig.connect(self._log.append_log)
         self._state_sig.connect(self._apply_state)
         self._content_sig.connect(self._show_content)
+        self._holo_sig.connect(self._spawn_holo)
         self._reconfig_sig.connect(self._show_setup)
         self._camera_sig.connect(self._show_camera_frame)
         self._confirm_sig.connect(self._show_confirm_banner)
@@ -4134,6 +4137,12 @@ class MainWindow(QMainWindow):
 
         return w
 
+    def _spawn_holo(self, title: str, text: str):
+        self._active_holos = [h for h in self._active_holos if h.isVisible()]
+        holo = HoloWidget(title, text)
+        self._active_holos.append(holo)
+        holo.show()
+
     def _show_content(self, title: str, text: str):
         """Slot — runs on Qt main thread. Updates and shows the content panel."""
         import time as _time
@@ -5043,6 +5052,8 @@ class MainWindow(QMainWindow):
         ov.answered.connect(self._on_confirm_answered)
         self._centre_overlay(ov)
         self._confirm_overlay = ov
+        self.activateWindow()
+        self.raise_()
 
     def _hide_confirm_banner(self):
         ov = getattr(self, "_confirm_overlay", None)
@@ -5379,6 +5390,7 @@ class ParisUI:
     def show_content(self, title: str, text: str):
         """Thread-safe: display content in the panel below the HUD."""
         self._win._content_sig.emit(title[:48], text[:4000])
+        self._win._holo_sig.emit(title[:48], text[:4000])
 
     def show_quiz(self, topic: str, questions, grade=None) -> None:
         """Thread-safe: put an interactive quiz on the board.
@@ -5434,3 +5446,58 @@ class ParisUI:
     def stop_speaking(self):
         if not self.muted:
             self.set_state("LISTENING")
+
+class HoloWidget(QWidget):
+    def __init__(self, title: str, text: str):
+        super().__init__()
+        from PyQt6.QtWidgets import QGraphicsOpacityEffect, QVBoxLayout, QFrame, QLabel, QApplication
+        from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation
+        import random
+        
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.resize(380, 220)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(15, 15, 15, 15)
+        
+        frame = QFrame()
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: rgba(1, 13, 20, 0.85);
+                border: 2px solid {C.PRI};
+                border-radius: 12px;
+            }}
+        """)
+        frame_layout = QVBoxLayout(frame)
+        
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet(f"color: {C.PRI}; font-size: 16px; font-weight: bold; border: none; background: transparent;")
+        
+        text_lbl = QLabel(text)
+        text_lbl.setWordWrap(True)
+        text_lbl.setStyleSheet(f"color: {C.TEXT}; font-size: 14px; border: none; background: transparent;")
+        
+        frame_layout.addWidget(title_lbl)
+        frame_layout.addWidget(text_lbl)
+        frame_layout.addStretch()
+        layout.addWidget(frame)
+        
+        screen = QApplication.primaryScreen().availableGeometry()
+        v_offset = random.randint(50, 400)
+        self.move(screen.width() - 420, v_offset)
+        
+        self.op_effect = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self.op_effect)
+        self.op_effect.setOpacity(1.0)
+        
+        QTimer.singleShot(10000, self.start_fade_out)
+        
+    def start_fade_out(self):
+        from PyQt6.QtCore import QPropertyAnimation
+        self.anim = QPropertyAnimation(self.op_effect, b"opacity")
+        self.anim.setDuration(1500)
+        self.anim.setStartValue(1.0)
+        self.anim.setEndValue(0.0)
+        self.anim.finished.connect(self.close)
+        self.anim.start()

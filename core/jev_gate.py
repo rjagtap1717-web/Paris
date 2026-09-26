@@ -6,7 +6,8 @@ EXEMPT_TOOLS = {
     "screen_process", "close_camera", "system_status", "recall_memory", 
     "save_memory", "weather_report", "undo", "manage_monitor", "reminder",
     "web_search", "browser_control", "youtube_video", "file_processor",
-    "flight_finder", "open_app"
+    "flight_finder", "open_app", "computer_control", "file_controller",
+    "ide_agent"
 }
 
 APPROVE_AT = 0.50
@@ -48,9 +49,6 @@ async def gate_tool_call(tool_name: str, tool_args: dict, context_info: str = ""
     """
     if tool_name in EXEMPT_TOOLS:
         return "exempt", "Tool is exempt from Jev gating."
-        
-    if tool_name == "file_controller" and tool_args.get("action") in ["list", "read", "find", "largest", "disk_usage", "info"]:
-        return "exempt", "Read actions are exempt from Jev gating."
         
     config = get_config()
     jev_enabled = config.get("jev_enabled", True)

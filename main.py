@@ -706,6 +706,47 @@ class ParisLive:
             if (time.monotonic() - self._last_user_speech) > self._wake_sleep_timeout:
                 self.sleep(reason="no speech for 2 minutes")
 
+    async def _run_presence_monitor(self) -> None:
+        """Detects if user returns after 15 minutes of inactivity and greets them."""
+        import ctypes
+        from ctypes import wintypes
+        
+        class LASTINPUTINFO(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.UINT), ("dwTime", wintypes.DWORD)]
+            
+        def get_idle_seconds() -> float:
+            try:
+                lii = LASTINPUTINFO()
+                lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+                if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii)):
+                    millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+                    return millis / 1000.0
+            except Exception:
+                pass
+            return 0.0
+
+        IDLE_THRESHOLD = 900.0  # 15 minutes
+        was_away = False
+        
+        while True:
+            await asyncio.sleep(5)
+            if not getattr(self, "session", None):
+                continue
+                
+            idle_secs = get_idle_seconds()
+            
+            if idle_secs > IDLE_THRESHOLD:
+                was_away = True
+            elif was_away and idle_secs < 5.0:
+                was_away = False
+                if not getattr(self.ui, "muted", True):
+                    if self._wake_enabled and not self._awake:
+                        self.wake(reason="User returned to PC")
+                        
+                    prompt = "System: The user has just returned to the computer after being away for over 15 minutes. Greet them warmly (e.g. 'Welcome back, sir'), mention the time of day, and briefly ask if they need anything."
+                    self.ui.write_log("SYS: Presence detected. Welcoming user back.")
+                    self.speak(prompt)
+
     # ── Wake word: UI callbacks (called from the Qt thread) ──────────────────
 
     def _ui_wake_toggle(self, enable: bool) -> str:
@@ -1458,6 +1499,24 @@ class ParisLive:
                 # Prevent connection errors or temporary session drop from killing mic sending loop
                 await asyncio.sleep(0.05)
 
+    async def _stream_video(self):
+        """Continuously streams screen frames to the Live session at 0.1 FPS."""
+        while True:
+            await asyncio.sleep(10.0)
+            if not getattr(self, "session", None) or not getattr(self, "_awake", False):
+                continue
+            try:
+                img_bytes, mime_t = await self._loop.run_in_executor(None, _capture_screen)
+                await self.session.send_realtime_input(
+                    video=types.Blob(
+                        data=img_bytes,
+                        mime_type=mime_t
+                    )
+                )
+            except Exception:
+                pass
+
+
     async def _listen_audio(self):
         print("[PARIS] 🎤 Mic started")
         loop = asyncio.get_event_loop()
@@ -1707,6 +1766,13 @@ class ParisLive:
 
                             full_in = " ".join(in_buf).strip()
                             if full_in:
+                                if confirm_gate.pending_title():
+                                    _affirmative = ["confirm", "yes", "go ahead", "do it", "approve", "ok", "okay", "sure", "fine", "yeah", "yep", "proceed", "accept", "do it now", "just do it", "let's go"]
+                                    _text_lower = full_in.lower()
+                                    if any(re.search(r'\b' + re.escape(w) + r'\b', _text_lower) for w in _affirmative):
+                                        self.ui.write_log(f"SYS: Voice confirmation accepted ('{full_in}').")
+                                        confirm_gate.resolve(True)
+
                                 self._last_out_logged = ""   # new exchange
                                 self.ui.write_log(f"You: {full_in}")
                                 self._session_log.append(f"User: {full_in}")
@@ -2311,6 +2377,7 @@ class ParisLive:
                     self._reconnect_event.clear()  # ignore requests from before this session
                     tg.create_task(self._watch_reconnect())
                     tg.create_task(self._send_realtime())
+                    tg.create_task(self._stream_video())
                     tg.create_task(self._listen_audio())
                     tg.create_task(self._receive_audio())
                     tg.create_task(self._play_audio())
@@ -2318,6 +2385,7 @@ class ParisLive:
                     tg.create_task(self._run_background_monitor())
                     tg.create_task(self._run_proactive_mode())
                     tg.create_task(self._run_sleep_watch())
+                    tg.create_task(self._run_presence_monitor())
                     if self._dashboard:
                         tg.create_task(self._relay_phone_audio())
 

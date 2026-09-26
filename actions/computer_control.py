@@ -178,11 +178,20 @@ def _smart_type(text: str, clear_first: bool = True) -> str:
     return f"Smart-typed: {text[:60]}{'…' if len(text) > 60 else ''}"
 
 
+_last_click_pos = None
+
 def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
     _require_pyautogui()
+    global _last_click_pos
     if x is not None and y is not None:
         pyautogui.moveTo(x, y)
-    
+        _last_click_pos = (x, y)
+    else:
+        try:
+            _last_click_pos = pyautogui.position()
+        except Exception:
+            pass
+            
     if _get_os() == "windows":
         import ctypes
         import time
@@ -200,6 +209,27 @@ def _click(x=None, y=None, button: str = "left", clicks: int = 1) -> str:
         return f"{'Double-c' if clicks == 2 else 'C'}licked ({x}, {y}) [{button}]"
     return f"Clicked at current position [{button}]"
 
+def _resume_typing(text: str) -> str:
+    _require_pyautogui()
+    global _last_click_pos
+    
+    msg_parts = []
+    if _last_click_pos:
+        try:
+            pyautogui.moveTo(_last_click_pos[0], _last_click_pos[1])
+            pyautogui.click(button="left", clicks=1)
+            time.sleep(0.1)
+            pyautogui.press("end")  # Move cursor to the end of the input field
+            time.sleep(0.1)
+            msg_parts.append(f"Refocused ({_last_click_pos[0]}, {_last_click_pos[1]})")
+        except Exception as e:
+            msg_parts.append(f"Refocus failed: {e}")
+    else:
+        msg_parts.append("No previous click position to refocus")
+        
+    type_res = _smart_type(text, clear_first=False)
+    msg_parts.append(type_res)
+    return "; ".join(msg_parts)
 
 def _hotkey(*keys) -> str:
     _require_pyautogui()
@@ -398,6 +428,7 @@ def computer_control(
     Actions:
       type          — type text at cursor
       smart_type    — clear field + type (clipboard-backed)
+      resume_typing — re-focus the last clicked element and append text (use when interrupted or continuing dictated input)
       click         — left click
       double_click  — double left click
       right_click   — right click
@@ -438,6 +469,9 @@ def computer_control(
                 params.get("text", ""),
                 clear_first=params.get("clear_first", True),
             )
+
+        if action == "resume_typing":
+            return _resume_typing(params.get("text", ""))
 
         if action in ("click", "left_click"):
             return _click(params.get("x"), params.get("y"), "left", 1)
@@ -536,7 +570,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "type | smart_type | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | random_data | user_data"
+                "description": "type | smart_type | resume_typing | click | double_click | right_click | hotkey | press | scroll | move | copy | paste | screenshot | wait | clear_field | focus_window | screen_find | screen_click | random_data | user_data"
             },
             "text": {
                 "type": "STRING",
