@@ -80,7 +80,48 @@ def _normalize(raw: str) -> str:
 
     return raw  
 
+def _bring_to_front_windows(app_name: str) -> bool:
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        hwnds = []
+        
+        search_term = app_name.lower()
+        if search_term == "chrome":
+            search_term = "google chrome"
+        elif search_term == "edge":
+            search_term = "microsoft edge"
+        elif search_term == "code" or search_term == "vscode":
+            search_term = "visual studio code"
+            
+        def callback(hwnd, extra):
+            if user32.IsWindowVisible(hwnd):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length > 0:
+                    buf = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buf, length + 1)
+                    title = buf.value.lower()
+                    if search_term in title:
+                        hwnds.append(hwnd)
+            return True
+            
+        EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, ctypes.POINTER(ctypes.c_int))
+        user32.EnumWindows(EnumWindowsProc(callback), 0)
+        
+        if hwnds:
+            hwnd = hwnds[0]
+            user32.ShowWindow(hwnd, 9) # SW_RESTORE
+            user32.SetForegroundWindow(hwnd)
+            return True
+    except Exception as e:
+        print(f"[open_app] bring_to_front failed: {e}")
+    return False
+
 def _launch_windows(app_name: str) -> bool:
+    if _bring_to_front_windows(app_name):
+        return True
+
 
     if shutil.which(app_name) or shutil.which(app_name.split(".")[0]):
         try:

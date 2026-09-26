@@ -8,7 +8,9 @@ def repair_tool_call(name: str, args: dict, registry) -> tuple[str, dict]:
     Attempts to repair a hallucinated or malformed tool call using fuzzy matching
     and schema validation/coercion.
     """
-    valid_names = registry.names()
+    valid_names = set(registry.names())
+    # Add internal built-in tools handled by main.py directly
+    valid_names.update(["screen_process", "undo", "recall_memory"])
     
     # 1. Repair Tool Name
     if name not in valid_names:
