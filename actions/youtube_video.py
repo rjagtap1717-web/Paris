@@ -68,18 +68,25 @@ def _open_url(url: str) -> None:
             try:
                 import uiautomation as auto
                 import pyautogui
-                chrome = auto.WindowControl(ClassName="Chrome_WidgetWin_1")
-                if chrome.Exists(0, 0):
-                    yt_tab = chrome.TabItemControl(searchDepth=5, RegexName="(?i).*YouTube.*")
-                    if yt_tab.Exists(0, 0):
-                        yt_tab.Click()
-                        chrome.SetFocus()
-                        time.sleep(0.2)
-                        pyautogui.hotkey("ctrl", "l")
-                        time.sleep(0.1)
-                        pyautogui.write(url)
-                        pyautogui.press("enter")
-                        return
+                import time
+                for win in auto.GetRootControl().GetChildren():
+                    if win.ClassName == "Chrome_WidgetWin_1":
+                        yt_tab = win.TabItemControl(searchDepth=8, RegexName="(?i).*YouTube.*")
+                        if yt_tab.Exists(0, 0):
+                            try:
+                                win.SetActive()
+                                win.SetTopmost(True)
+                                win.SetTopmost(False)
+                            except:
+                                win.SetFocus()
+                            time.sleep(0.2)
+                            yt_tab.Click()
+                            time.sleep(0.2)
+                            pyautogui.hotkey("ctrl", "l")
+                            time.sleep(0.1)
+                            pyautogui.write(url)
+                            pyautogui.press("enter")
+                            return
             except Exception as e:
                 print(f"[YouTube] ⚠️ Chrome Tab reuse failed: {e}")
             subprocess.Popen(["start", "chrome", url], shell=True)
