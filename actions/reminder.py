@@ -340,6 +340,7 @@ def reminder(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "reminder",
+    "scope": "exempt",
     "description": "Sets a timed reminder using Task Scheduler.",
     "parameters": {
         "type": "OBJECT",

@@ -106,6 +106,7 @@ def _ensure_network_access(port: int) -> None:
     macOS   : osascript admin dialog if the Application Firewall is on.
     Linux   : pkexec GUI → sudo -n → prints manual command as fallback.
     """
+    return # DISABLED by user request to prevent UAC permissions dialog on startup
     import sys, subprocess, os, tempfile, threading
 
     # ── Windows ──────────────────────────────────────────────────────────────

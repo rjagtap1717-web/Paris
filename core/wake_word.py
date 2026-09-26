@@ -135,8 +135,15 @@ class WakeWordDetector:
         if self._running:
             return True
         try:
+            import openwakeword
             from openwakeword.model import Model
-            self._model = Model(wakeword_models=[WAKE_MODEL], inference_framework="onnx")
+            
+            models_dir = Path(openwakeword.__file__).resolve().parent / "resources" / "models"
+            model_path = next(models_dir.glob(f"{WAKE_MODEL}*.onnx"), None)
+            if not model_path:
+                raise FileNotFoundError(f"Model {WAKE_MODEL} not found in {models_dir}")
+                
+            self._model = Model(wakeword_models=[str(model_path)], inference_framework="onnx")
         except Exception as e:
             self._logger(f"Wake word: could not load model — {e}")
             self._notify("Wake word unavailable — use the WAKE NOW button.")

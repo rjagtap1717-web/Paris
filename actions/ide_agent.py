@@ -42,6 +42,7 @@ def ide_agent(parameters: dict, response=None, player=None, session_memory=None,
 
 TOOL = {
     "name": "ide_agent",
+    "scope": "exempt",
     "description": "Use this tool to delegate complex coding tasks, scaffolding projects, or multi-file edits to the Antigravity IDE Agent. The agent will run autonomously and has full filesystem and execution capabilities.",
     "parameters": {
         "type": "OBJECT",

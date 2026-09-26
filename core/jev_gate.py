@@ -2,13 +2,7 @@ import asyncio
 import requests
 from config import get_config
 
-EXEMPT_TOOLS = {
-    "screen_process", "close_camera", "system_status", "recall_memory", 
-    "save_memory", "weather_report", "undo", "manage_monitor", "reminder",
-    "web_search", "browser_control", "youtube_video", "file_processor",
-    "flight_finder", "open_app", "computer_control", "file_controller",
-    "ide_agent"
-}
+# EXEMPT_TOOLS logic is now handled by the 'scope' property in the TOOL dictionary.
 
 APPROVE_AT = 0.50
 BLOCK_AT = 0.15
@@ -42,13 +36,13 @@ def _ask_jev_sync(state: dict, questions: dict, api_key: str) -> dict:
         print(f"[Jev] Error communicating with Jev API: {e}")
         return None
 
-async def gate_tool_call(tool_name: str, tool_args: dict, context_info: str = "") -> tuple[str, str]:
+async def gate_tool_call(tool_name: str, tool_args: dict, context_info: str = "", tool_scope: str = "local") -> tuple[str, str]:
     """
     Evaluates a tool call using Jev.
     Returns (outcome, reason) where outcome is "approve", "block", "review", or "exempt".
     """
-    if tool_name in EXEMPT_TOOLS:
-        return "exempt", "Tool is exempt from Jev gating."
+    if tool_scope == "exempt":
+        return "exempt", "Tool is exempt from Jev gating based on its scope."
         
     config = get_config()
     jev_enabled = config.get("jev_enabled", True)
@@ -73,6 +67,17 @@ async def gate_tool_call(tool_name: str, tool_args: dict, context_info: str = ""
             "instructions": "This action is safe, low-risk, or reversible. It does not cause permanent data loss, send unwanted communications, or break the system.",
         }
     }
+    
+    if tool_scope == "network":
+        questions["network_allowed"] = {
+            "type": "noul",
+            "instructions": "This action is safely interacting with external networks and the user is okay with the information being sent.",
+        }
+    elif tool_scope == "destructive":
+        questions["destructive_confirmed"] = {
+            "type": "noul",
+            "instructions": "The user explicitly authorized this potentially destructive action (like deleting files, sending emails, or changing settings).",
+        }
     
     loop = asyncio.get_event_loop()
     results = await loop.run_in_executor(None, _ask_jev_sync, state, questions, api_key)

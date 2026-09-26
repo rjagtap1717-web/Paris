@@ -564,6 +564,7 @@ def computer_control(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "computer_control",
+    "scope": "exempt",
     "description": "Direct computer control: type, click, hotkeys, scroll, move mouse, screenshots, find elements on screen.",
     "parameters": {
         "type": "OBJECT",

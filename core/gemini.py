@@ -265,6 +265,9 @@ def _to_live_parts(contents) -> list:
     return parts
 
 
+from core.retry import retry
+
+@retry(max_attempts=3, backoff_factor=1.5, initial_wait=0.5)
 async def _live_turn(parts: list, system: str, key: str, timeout_s: float) -> str:
     from google import genai
     from google.genai import types as gtypes

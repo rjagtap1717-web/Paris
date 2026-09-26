@@ -127,6 +127,9 @@ def _get_ddgs():
         return DDGS
 
 
+from core.retry import retry
+
+@retry(max_attempts=3, backoff_factor=1.5, initial_wait=0.5)
 def _ddg_search(query: str, max_results: int = 6) -> list[dict]:
     DDGS = _get_ddgs()
     results = []
@@ -143,6 +146,7 @@ def _ddg_search(query: str, max_results: int = 6) -> list[dict]:
     return results
 
 
+@retry(max_attempts=3, backoff_factor=1.5, initial_wait=0.5)
 def _ddg_news(query: str, max_results: int = 8) -> list[dict]:
     """DDG news search — returns actual articles, not website homepages."""
     DDGS = _get_ddgs()
@@ -384,6 +388,7 @@ def web_search(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "web_search",
+    "scope": "network",
     "description": "Searches the web. Use for ANY question about current facts, events, prices, or topics — always prefer this over guessing. Modes: 'search' (default), 'news' (latest headlines on a topic), 'research' (deep comprehensive answer), 'price' (product cost lookup), 'compare' (side-by-side comparison of items).",
     "parameters": {
         "type": "OBJECT",

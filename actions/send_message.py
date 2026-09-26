@@ -269,6 +269,7 @@ def send_message(
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "send_message",
+    "scope": "local",
     "description": "Sends a text message via WhatsApp, Telegram, or other messaging platform.",
     "parameters": {
         "type": "OBJECT",

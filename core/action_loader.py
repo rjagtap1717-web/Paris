@@ -32,7 +32,7 @@ import sys
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Any
 
 _NAME_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,63}$")
 _DEFAULT_PARAMS = {"type": "OBJECT", "properties": {}}
@@ -65,6 +65,7 @@ class ActionRecord:
     error: str = ""
     behavior: Optional[str] = None     # None = the API's default (blocking)
     scheduling: Optional[str] = None   # None = the API's default (WHEN_IDLE)
+    scope: str = "local"               # "local", "network", "destructive", "exempt"
 
 
 class ActionRegistry:
@@ -92,23 +93,31 @@ class ActionRegistry:
         rec = self._actions.get(name)
         return rec.scheduling if rec else None
 
+    def scope(self, name: str) -> str:
+        """The network/sandboxing scope of this action."""
+        rec = self._actions.get(name)
+        return rec.scope if rec else "local"
+
     def names(self) -> set[str]:
         return set(self._actions.keys())
 
     # -- called by main.py from _execute_tool --
-    def run(self, name: str, parameters: dict, ctx: dict | None = None) -> str:
+    def run(self, name: str, parameters: dict, ctx: dict | None = None) -> Any:
         rec = self._actions.get(name)
         if rec is None or not rec.valid:
             return f"Action '{name}' is not available."
         try:
-            return _call_handler(rec.handler, parameters, ctx or {}) or "Done."
+            res = _call_handler(rec.handler, parameters, ctx or {})
+            if res is None:
+                return "Done."
+            return res
         except Exception as e:
             self._logger(f"Action '{name}' crashed during run(): {e}")
             traceback.print_exc()
             return f"Tool '{name}' failed: {e}"
 
 
-def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> str:
+def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> Any:
     """Invoke the handler passing only the context kwargs it actually declares
     (or all of them if it has **kwargs), so each action's existing signature
     works unchanged."""
@@ -151,7 +160,8 @@ def _validate(module, filename: str) -> ActionRecord:
     return ActionRecord(name=name, description=description.strip(), parameters=parameters,
                         handler=handler, file=filename, valid=True, error="",
                         behavior=_opt_upper(tool.get("behavior"), _BEHAVIORS),
-                        scheduling=_opt_upper(tool.get("scheduling"), _SCHEDULING))
+                        scheduling=_opt_upper(tool.get("scheduling"), _SCHEDULING),
+                        scope=tool.get("scope", "local"))
 
 
 def discover_actions(actions_dir: Path, reserved_names: set[str] | None = None,

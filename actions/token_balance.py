@@ -66,6 +66,7 @@ def _log(message: str, player=None) -> None:
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
 TOOL = {
     "name": "check_token_balance",
+    "scope": "local",
     "description": "Checks the remaining OpenRouter API credits / LLM token balance limits.",
     "parameters": {
         "type": "OBJECT",

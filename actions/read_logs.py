@@ -12,12 +12,24 @@ def read_logs(lines: int = 50) -> str:
             all_lines = f.readlines()
             
         recent_lines = all_lines[-lines:] if len(all_lines) > lines else all_lines
-        return "".join(recent_lines)
+        parsed_lines = []
+        import json
+        for line in recent_lines:
+            try:
+                obj = json.loads(line)
+                msg = f"[{obj.get('time')}] {obj.get('level')} {obj.get('module')}: {obj.get('message')}"
+                if 'exception' in obj:
+                    msg += f"\nException: {obj['exception']}"
+                parsed_lines.append(msg)
+            except Exception:
+                parsed_lines.append(line.strip()) # Fallback for non-JSON lines
+        return "\n".join(parsed_lines)
     except Exception as e:
         return f"Error reading logs: {e}"
 
 TOOL = {
     "name": "read_logs",
+    "scope": "local",
     "description": "Read the recent system logs of the Paris AI to diagnose errors, crashes, or failed actions (like failed clicks or screenshots). Use this when the user asks what went wrong.",
     "parameters": {
         "type": "OBJECT",

@@ -4151,7 +4151,9 @@ class MainWindow(QMainWindow):
         self.hud.glance(0.0, -0.85, hold=1.3)
         self._content_title_lbl.setText(title.upper()[:48])
         self._content_ts_lbl.setText(_time.strftime("%H:%M:%S"))
-        self._content_display.setPlainText(text)
+        from core.markdown_renderer import render_markdown
+        html = render_markdown(text)
+        self._content_display.setHtml(html)
         self._content_display.moveCursor(
             self._content_display.textCursor().MoveOperation.Start
         )

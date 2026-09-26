@@ -44,6 +44,9 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
+from core.logger import setup_logging
+setup_logging()
+
 import sounddevice as sd
 import numpy as np
 from google import genai
@@ -822,6 +825,21 @@ class ParisLive:
         except Exception as e:
             print(f"[PluginSay] {e}")
 
+    def _log_to_history(self, role: str, text: str):
+        """Append a single turn to the persistent JSONL session history."""
+        try:
+            log_path = Path("E:/Paris/logs/session_history.jsonl")
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                record = {
+                    "time": datetime.now().isoformat(),
+                    "role": role,
+                    "text": text
+                }
+                f.write(json.dumps(record) + "\n")
+        except Exception as e:
+            print(f"[History] Failed to write history: {e}")
+
     def request_reconnect(self, keep_context: bool = True, reason: str = ""):
         """Thread-safe: ask the run loop to tear down and rebuild the Live
         session. Called from the Qt thread. No-op until the async loop and
@@ -885,6 +903,44 @@ class ParisLive:
     def _on_text_command(self, text: str):
         if not self._loop or not self.session:
             return
+            
+        text = text.strip()
+        
+        # Intercept slash commands
+        if text.startswith("/"):
+            parts = text.split(" ", 1)
+            cmd = parts[0].lower()
+            arg = parts[1].strip() if len(parts) > 1 else ""
+            
+            if cmd == "/clear":
+                self.request_reconnect(keep_context=False, reason="cleared by user command")
+                self.ui.write_log("SYS: Session cleared.")
+                return
+            elif cmd == "/voice":
+                if not arg:
+                    self.ui.write_log("SYS: Please specify a voice (e.g. /voice puck)")
+                    return
+                from config import update_config
+                update_config("voice", arg)
+                self.request_reconnect(keep_context=False, reason=f"voice changed to {arg}")
+                self.ui.write_log(f"SYS: Voice changed to {arg}. Reconnecting...")
+                return
+            elif cmd == "/model":
+                self.ui.write_log("SYS: /model command will be supported in Phase 3.")
+                return
+            elif cmd == "/memory":
+                self.ui.write_log("SYS: /memory panel will be implemented soon.")
+                return
+            elif cmd == "/history":
+                from actions.search_history import search_history
+                hist = search_history(limit=50)
+                self.ui.show_content("Session History", hist)
+                self.ui.write_log("SYS: Opened session history.")
+                return
+            else:
+                self.ui.write_log(f"SYS: Unknown command '{cmd}'")
+                return
+
         # Respect wake-word sleep: a typed command must not be answered while
         # asleep either (the sleep gate is not just for the mic). Wake first with
         # "Hey Jarvis" or the WAKE NOW button.
@@ -1182,10 +1238,14 @@ class ParisLive:
         return out
 
     async def _execute_tool(self, fc) -> types.FunctionResponse:
-        name = fc.name
-        args = dict(fc.args or {})
+        from core.tool_repair import repair_tool_call
+        raw_name = fc.name
+        raw_args = dict(fc.args or {})
+        
+        name, args = repair_tool_call(raw_name, raw_args, self._action_registry)
 
         print(f"[PARIS] 🔧 {name}  {args}")
+        self._log_to_history("tool_call", f"{name}({json.dumps(args)})")
         self.ui.set_state("THINKING")
 
 
@@ -1216,7 +1276,8 @@ class ParisLive:
                 last_user_query = line
                 break
 
-        outcome, reason = await gate_tool_call(name, args, last_user_query)
+        tool_scope = self._action_registry.scope(name)
+        outcome, reason = await gate_tool_call(name, args, last_user_query, tool_scope)
         print(f"[Jev Gate] {name}: {outcome} - {reason}")
         
         if outcome == "block":
@@ -1294,8 +1355,10 @@ class ParisLive:
                         _ctx = {"player": self.ui, "speak": self.speak,
                                 "response": None, "session_memory": None}
                         r = await _loop.run_in_executor(None, lambda: self._action_registry.run(name, args, _ctx))
-                        _res = r or "Done."
-                        if (name == "web_search" and r
+                        _res = r if r is not None else "Done."
+                        if hasattr(_res, "to_dict"):
+                            _res = _res.to_dict()
+                        if (name == "web_search" and isinstance(r, str)
                                 and not r.startswith("No results")
                                 and not r.startswith("Search failed")):
                             _mode  = args.get("mode", "search")
@@ -1447,9 +1510,11 @@ class ParisLive:
                 _ctx = {"player": self.ui, "speak": self.speak,
                         "response": None, "session_memory": None}
                 r = await loop.run_in_executor(None, lambda: self._action_registry.run(name, args, _ctx))
-                result = r or "Done."
+                result = r if r is not None else "Done."
+                if hasattr(result, "to_dict"):
+                    result = result.to_dict()
                 # web_search: mirror results to the on-screen content panel
-                if (name == "web_search" and r
+                if (name == "web_search" and isinstance(r, str)
                         and not r.startswith("No results")
                         and not r.startswith("Search failed")):
                     _mode  = args.get("mode", "search")
@@ -1783,6 +1848,7 @@ class ParisLive:
                                 self._last_out_logged = ""   # new exchange
                                 self.ui.write_log(f"You: {full_in}")
                                 self._session_log.append(f"User: {full_in}")
+                                self._log_to_history("user", full_in)
                                 if self._dashboard:
                                     asyncio.create_task(self._dashboard.broadcast({
                                         "type": "log", "speaker": "user",
@@ -1802,6 +1868,7 @@ class ParisLive:
                                 self._last_out_logged = full_out
                                 self.ui.write_log(f"{self._asst_name}: {full_out}")
                                 self._session_log.append(f"{self._asst_name}: {full_out}")
+                                self._log_to_history("model", full_out)
                                 if self._dashboard:
                                     asyncio.create_task(self._dashboard.broadcast({
                                         "type": "log", "speaker": "paris",
