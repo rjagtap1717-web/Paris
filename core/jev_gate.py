@@ -88,10 +88,10 @@ async def gate_tool_call(tool_name: str, tool_args: dict, context_info: str = ""
     probs = list(results.values())
     
     if all(p >= APPROVE_AT for p in probs):
-        return "approve", f"Jev approved (user_req={results['user_requested']:.2f}, safe={results['safe_to_run']:.2f})"
+        return "approve", f"Safety system approved (user_req={results['user_requested']:.2f}, safe={results['safe_to_run']:.2f})"
         
     if any(p <= BLOCK_AT for p in probs):
         failed = [f"{k}={v:.2f}" for k, v in results.items() if v <= BLOCK_AT]
-        return "block", f"Jev blocked: {', '.join(failed)}"
+        return "block", f"Safety system blocked: {', '.join(failed)}"
         
-    return "review", f"Jev uncertain (user_req={results['user_requested']:.2f}, safe={results['safe_to_run']:.2f})"
+    return "review", f"Safety system uncertain (user_req={results['user_requested']:.2f}, safe={results['safe_to_run']:.2f})"
