@@ -305,6 +305,9 @@ def open_app(
 
     if not app_name:
         return "No application name provided."
+        
+    if app_name.lower() in ["paris", "paris app", "paris ai"]:
+        return "I am already running! I cannot open another instance of myself."
 
     launcher = _OS_LAUNCHERS.get(_SYSTEM)
     if launcher is None:

@@ -151,33 +151,62 @@ def _get_camera_index() -> int:
     return _detect_camera_index()
 
 
+import time
+import threading
+
+_camera_lock = threading.Lock()
+
 def _capture_camera() -> tuple[bytes, str]:
     if not _CV2:
         raise RuntimeError("OpenCV (cv2) is not installed. Run: pip install opencv-python")
 
-    index   = _get_camera_index()
-    backend = _cv2_backend()
-    cap     = cv2.VideoCapture(index, backend)
+    with _camera_lock:
+        backend = _cv2_backend()
+        
+        # 1. First try the saved or previously detected index
+        index = _get_camera_index()
+        cap, frame = _try_capture(index, backend)
+        
+        # 2. If it fails, the camera might have been unplugged or locked. Force re-detection.
+        if frame is None:
+            print(f"[Vision] ⚠️ Camera index {index} failed. Re-detecting...")
+            index = _detect_camera_index()
+            cap, frame = _try_capture(index, backend)
+            
+        # 3. If it STILL fails, throw a clear error for the LLM
+        if frame is None:
+            raise RuntimeError("Camera failed to open or return a frame after all retries. The camera may be unplugged, covered, or locked by another application.")
 
-    if not cap.isOpened():
-        raise RuntimeError(f"Camera index {index} could not be opened.")
+        if _PIL:
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = PIL.Image.fromarray(rgb)
+            img.thumbnail((_IMG_MAX_W, _IMG_MAX_H), PIL.Image.BILINEAR)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=_JPEG_Q)
+            return buf.getvalue(), "image/jpeg"
 
-    for _ in range(10):
-        cap.read()
+        _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, _JPEG_Q])
+        return buf.tobytes(), "image/jpeg"
 
-    ret, frame = cap.read()
-    cap.release()
-
-    if not ret or frame is None:
-        raise RuntimeError("Camera returned no frame.")
-
-    if _PIL:
-        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        img = PIL.Image.fromarray(rgb)
-        img.thumbnail((_IMG_MAX_W, _IMG_MAX_H), PIL.Image.BILINEAR)
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=_JPEG_Q)
-        return buf.getvalue(), "image/jpeg"
-
-    _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, _JPEG_Q])
-    return buf.tobytes(), "image/jpeg"
+def _try_capture(index: int, backend: int, max_retries: int = 3) -> tuple:
+    """Helper to attempt capture with exponential backoff for slow-starting cameras."""
+    for attempt in range(max_retries):
+        cap = cv2.VideoCapture(index, backend)
+        if not cap.isOpened():
+            cap.release()
+            time.sleep(0.5 * (attempt + 1))
+            continue
+            
+        # Warmup frames
+        for _ in range(10):
+            cap.read()
+            
+        ret, frame = cap.read()
+        cap.release()
+        
+        if ret and frame is not None and bool(np.mean(frame) > 2): # Avoid pure black frames
+            return cap, frame
+            
+        time.sleep(0.5 * (attempt + 1))
+        
+    return None, None

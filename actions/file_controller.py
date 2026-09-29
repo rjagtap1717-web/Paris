@@ -234,14 +234,38 @@ def create_file(path: str, name: str = "", content: str = "") -> str:
         target.parent.mkdir(parents=True, exist_ok=True)
         existed = target.exists()
         previous = None
+        undoable = True
         if existed:
+            if target.suffix.lower() == ".docx":
+                undoable = False
+            else:
+                try:
+                    previous = target.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    previous = None
+                    undoable = False
+
+        if target.suffix.lower() == ".docx":
             try:
-                previous = target.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
-                previous = None
-        target.write_text(content, encoding="utf-8")
-        push_undo(f"created {target.name}",
-                  _undo_write(target, previous) if existed else _undo_create(target))
+                from docx import Document
+                doc = Document()
+                for para in content.split("\n"):
+                    if para.strip():
+                        doc.add_paragraph(para.strip())
+                doc.save(target)
+            except ImportError:
+                return "python-docx not installed. Run: pip install python-docx"
+            except Exception as e:
+                return f"Could not create DOCX: {e}"
+        elif target.suffix.lower() in {".xlsx", ".xls", ".pptx", ".ppt", ".pdf", ".zip", ".png", ".jpg", ".jpeg"}:
+            return (f"Cannot write plain text directly to {target.suffix} binary files. "
+                    f"Please use .csv for spreadsheets, .txt for raw text, or write and run a Python script to generate this file format.")
+        else:
+            target.write_text(content, encoding="utf-8")
+            
+        if undoable:
+            push_undo(f"created {target.name}",
+                      _undo_write(target, previous) if existed else _undo_create(target))
         return f"File created: {target.name}"
     except Exception as e:
         return f"Could not create file: {e}"
@@ -422,17 +446,36 @@ def write_file(path: str, name: str = "", content: str = "",
         previous: Optional[str] = None
         undoable = True
         if target.exists():
-            try:
-                if target.stat().st_size > _UNDO_CONTENT_LIMIT:
-                    undoable = False       # too large to hold in memory
-                else:
-                    previous = target.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
-                undoable = False           # binary, locked, unreadable
+            if target.suffix.lower() == ".docx":
+                undoable = False
+            else:
+                try:
+                    if target.stat().st_size > _UNDO_CONTENT_LIMIT:
+                        undoable = False       # too large to hold in memory
+                    else:
+                        previous = target.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    undoable = False           # binary, locked, unreadable
 
-        mode = "a" if append else "w"
-        with open(target, mode, encoding="utf-8") as f:
-            f.write(content)
+        if target.suffix.lower() == ".docx":
+            try:
+                from docx import Document
+                doc = Document(target) if (target.exists() and append) else Document()
+                for para in content.split("\n"):
+                    if para.strip():
+                        doc.add_paragraph(para.strip())
+                doc.save(target)
+            except ImportError:
+                return "python-docx not installed. Run: pip install python-docx"
+            except Exception as e:
+                return f"Could not write to DOCX: {e}"
+        elif target.suffix.lower() in {".xlsx", ".xls", ".pptx", ".ppt", ".pdf", ".zip", ".png", ".jpg", ".jpeg"}:
+            return (f"Cannot write plain text directly to {target.suffix} binary files. "
+                    f"Please use .csv for spreadsheets, .txt for raw text, or write and run a Python script to generate this file format.")
+        else:
+            mode = "a" if append else "w"
+            with open(target, mode, encoding="utf-8") as f:
+                f.write(content)
 
         action = "Appended to" if append else "Written to"
         if undoable:
@@ -769,7 +812,11 @@ def file_controller(
 TOOL = {
     "name": "file_controller",
     "scope": "destructive",
-    "description": "Manages files and folders: list, create, delete, move, copy, rename, read, write, find, disk usage.",
+    "description": (
+        "Manages files and folders: list, create, delete, move, copy, rename, read, write, find, disk usage. "
+        "NOTE: create_file natively supports creating true Microsoft Word (.docx) documents! Just pass the text content and use the .docx extension. "
+        "For spreadsheets, create .csv files instead of .xlsx."
+    ),
     "parameters": {
         "type": "OBJECT",
         "properties": {

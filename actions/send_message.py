@@ -150,7 +150,34 @@ def _desktop_send(app_name: str, receiver: str, message: str) -> str:
     return f"Message sent to {receiver} via {app_name}."
 
 def _send_whatsapp(receiver: str, message: str) -> str:
-    return _desktop_send("WhatsApp", receiver, message)
+    if not _open_app("WhatsApp"):
+        return "Could not open WhatsApp."
+
+    time.sleep(2.0) # Wait for WhatsApp to fully foreground
+    
+    os_name = _get_os()
+    
+    # In modern WhatsApp Desktop, Ctrl+N (or Cmd+N) reliably opens the New Chat / Global Search
+    # This is much safer than Ctrl+F which sometimes searches inside an existing open chat.
+    new_chat_hotkey = ("command", "n") if os_name == "mac" else ("ctrl", "n")
+    pyautogui.hotkey(*new_chat_hotkey)
+    time.sleep(1.0)
+    
+    _paste_text(receiver)
+    time.sleep(2.0) # Give WhatsApp time to filter the contact list
+    
+    # Explicitly press down to select the first search result, then enter to open the chat
+    pyautogui.press("down")
+    time.sleep(0.2)
+    pyautogui.press("enter")
+    time.sleep(1.0) # Wait for chat window to transition
+    
+    _paste_text(message)
+    time.sleep(0.2)
+    pyautogui.press("enter")
+    time.sleep(0.3)
+    
+    return f"Message sent to {receiver} via WhatsApp."
 
 def _send_telegram(receiver: str, message: str) -> str:
     return _desktop_send("Telegram", receiver, message)

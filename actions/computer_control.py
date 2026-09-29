@@ -384,9 +384,8 @@ def _screen_find(description: str) -> tuple[int, int] | None:
         image_bytes = buf.getvalue()
 
         prompt = (
-            f"This is a screenshot of a {w}×{h} pixel screen. "
-            f"Locate the UI element described as: '{description}'. "
-            f"Reply with ONLY the center coordinates as: x,y "
+            f"Return the 2D bounding box for the UI element described as: '{description}'. "
+            f"Format your response exactly as [ymin, xmin, ymax, xmax] where values are 0-1000. "
             f"If the element is not visible, reply: NOT_FOUND"
         )
 
@@ -402,9 +401,15 @@ def _screen_find(description: str) -> tuple[int, int] | None:
         if "NOT_FOUND" in text.upper():
             return None
 
-        match = re.search(r"(\d+)\s*,\s*(\d+)", text)
+        # Parse Gemini native normalized bounding box: [ymin, xmin, ymax, xmax]
+        import re
+        match = re.search(r"\[\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]", text)
         if match:
-            return int(match.group(1)), int(match.group(2))
+            ymin, xmin, ymax, xmax = map(int, match.groups())
+            # Convert 0-1000 normalized coordinates to screen pixels
+            center_x_norm = (xmin + xmax) / 2
+            center_y_norm = (ymin + ymax) / 2
+            return int((center_x_norm / 1000) * w), int((center_y_norm / 1000) * h)
 
     except Exception as e:
         print(f"[ComputerControl] ⚠️ screen_find failed: {e}")
