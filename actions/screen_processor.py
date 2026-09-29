@@ -65,8 +65,8 @@ def _get_os() -> str:
     return _load_config().get("os_system", "windows").lower()
 
 
-_IMG_MAX_W = 1280
-_IMG_MAX_H = 720
+_IMG_MAX_W = 3840
+_IMG_MAX_H = 2160
 _JPEG_Q    = 82
 
 

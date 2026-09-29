@@ -373,9 +373,15 @@ def reload_page_n(n: int):
         time.sleep(0.8)
 
 
-def scroll_up(amount: int = 500):    pyautogui.scroll(amount)
-def scroll_down(amount: int = 500):  pyautogui.scroll(-amount)
+def scroll_up(amount: int = 500):
+    clicks = amount if _OS != "Windows" else int(amount / 100 * 120)
+    w, h = pyautogui.size()
+    pyautogui.scroll(clicks, x=w//2, y=h//2)
 
+def scroll_down(amount: int = 500):
+    clicks = amount if _OS != "Windows" else int(amount / 100 * 120)
+    w, h = pyautogui.size()
+    pyautogui.scroll(-clicks, x=w//2, y=h//2)
 def scroll_top():
     if _OS == "Darwin": pyautogui.hotkey("command", "up")
     else:               pyautogui.hotkey("ctrl", "home")

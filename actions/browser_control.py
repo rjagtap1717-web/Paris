@@ -60,95 +60,17 @@ def _user_agent() -> str:
 
 def _real_profile_dir(browser: str) -> str:
     home  = Path.home()
-    local = os.environ.get("LOCALAPPDATA", "")
-    roam  = os.environ.get("APPDATA", "")
-
-    candidates: list[Path] = []
-
-    if _OS == "Windows":
-        m = {
-            "chrome":   [Path(local) / "Google"          / "Chrome"          / "User Data"],
-            "edge":     [Path(local) / "Microsoft"        / "Edge"            / "User Data"],
-            "brave":    [Path(local) / "BraveSoftware"    / "Brave-Browser"   / "User Data"],
-            "vivaldi":  [Path(local) / "Vivaldi"          / "User Data"],
-            "opera":    [Path(roam)  / "Opera Software"   / "Opera Stable",
-                         Path(local) / "Opera Software"   / "Opera Stable"],
-            "operagx":  [Path(roam)  / "Opera Software"   / "Opera GX Stable",
-                         Path(local) / "Opera Software"   / "Opera GX Stable"],
-        }
-        candidates = m.get(browser, [])
-
-    elif _OS == "Darwin":
-        lib = home / "Library" / "Application Support"
-        m = {
-            "chrome":   [lib / "Google"             / "Chrome"],
-            "edge":     [lib / "Microsoft Edge"],
-            "brave":    [lib / "BraveSoftware"       / "Brave-Browser"],
-            "vivaldi":  [lib / "Vivaldi"],
-            "opera":    [lib / "com.operasoftware.Opera"],
-            "operagx":  [lib / "com.operasoftware.OperaGX"],
-        }
-        candidates = m.get(browser, [])
-
-    elif _OS == "Linux":
-        cfg = home / ".config"
-        m = {
-            "chrome":   [cfg / "google-chrome", cfg / "chromium"],
-            "edge":     [cfg / "microsoft-edge"],
-            "brave":    [cfg / "BraveSoftware" / "Brave-Browser"],
-            "vivaldi":  [cfg / "vivaldi"],
-            "opera":    [cfg / "opera"],
-            "operagx":  [cfg / "opera-gx"],
-        }
-        candidates = m.get(browser, [])
-
-    for p in candidates:
-        if p.exists():
-            print(f"[Browser] ✅ Real profile found for {browser}: {p}")
-            return str(p)
-
     fallback = home / ".paris_profiles" / browser
     fallback.mkdir(parents=True, exist_ok=True)
-    print(f"[Browser] ⚠️  Real profile not found for {browser}, using: {fallback}")
+    print(f"[Browser] ⚠️  Forcing isolated Paris profile for {browser} to prevent locks: {fallback}")
     return str(fallback)
 
 def _firefox_profile_dir() -> Optional[str]:
     home = Path.home()
-
-    if _OS == "Windows":
-        base = Path(os.environ.get("APPDATA", "")) / "Mozilla" / "Firefox"
-    elif _OS == "Darwin":
-        base = home / "Library" / "Application Support" / "Firefox"
-    else:
-        base = home / ".mozilla" / "firefox"
-
-    ini = base / "profiles.ini"
-    if not ini.exists():
-        return None
-
-    current: dict[str, str] = {}
-    default_path: Optional[str] = None
-
-    for line in ini.read_text(encoding="utf-8", errors="ignore").splitlines():
-        line = line.strip()
-        if line.startswith("["):
-            p = current.get("Path", "")
-            if p and current.get("Default") == "1":
-                is_rel = current.get("IsRelative", "1") == "1"
-                default_path = str(base / p) if is_rel else p
-            current = {}
-        elif "=" in line:
-            k, _, v = line.partition("=")
-            current[k.strip()] = v.strip()
-
-    p = current.get("Path", "")
-    if p and current.get("Default") == "1":
-        is_rel = current.get("IsRelative", "1") == "1"
-        default_path = str(base / p) if is_rel else p
-
-    if default_path and Path(default_path).exists():
-        print(f"[Browser] Firefox real profile: {default_path}")
-        return default_path
+    fallback = home / ".paris_profiles" / "firefox"
+    fallback.mkdir(parents=True, exist_ok=True)
+    print(f"[Browser] Forcing isolated Paris profile for Firefox: {fallback}")
+    return str(fallback)
     return None
 
 def _find_opera_windows() -> Optional[str]:
@@ -1071,7 +993,7 @@ def _log(player, text: str):
 TOOL = {
     "name": "browser_control",
     "scope": "network",
-    "description": "Controls any web browser. Use for: opening websites, searching the web, clicking elements, filling forms, scrolling, screenshots, navigation, any web-based task. Simple open/search requests launch the user's own browser normally (their real profile and logged-in accounts); interactive actions (click, type, fill_form...) attach an automation browser. Always pass the 'browser' parameter when the user specifies a browser (e.g. 'open in Edge', 'use Firefox', 'open Chrome'). Multiple browsers can run simultaneously.",
+    "description": "Controls a standalone, automated web browser profile. Use for background web tasks, scraping, and automated navigation. IMPORTANT: This tool uses an isolated browser profile to prevent crashing the user's active browser. If you hit a login screen, you may freely use the user's email 'rjagtap1717@gmail.com'. If you specifically need to interact with a browser the user ALREADY has open on their screen, DO NOT use this tool; instead, use 'computer_control' and 'computer_settings' to visually click and type on their existing window.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

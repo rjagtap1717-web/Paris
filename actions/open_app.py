@@ -2,6 +2,7 @@ import time
 import subprocess
 import platform
 import shutil
+import difflib
 
 try:
     import psutil
@@ -78,7 +79,20 @@ def _normalize(raw: str) -> str:
         if alias_key in key or key in alias_key:
             return os_map.get(_SYSTEM, raw)
 
-    return raw  
+    # Fuzzy match handling variations like misspellings
+    matches = difflib.get_close_matches(key, _APP_ALIASES.keys(), n=1, cutoff=0.6)
+    if matches:
+        return _APP_ALIASES[matches[0]].get(_SYSTEM, raw)
+
+    # Aggressive fallback: remove spaces to handle "anti gravity" vs "antigravity"
+    key_no_spaces = key.replace(" ", "")
+    aliases_no_spaces = {k.replace(" ", ""): k for k in _APP_ALIASES.keys()}
+    matches_no_spaces = difflib.get_close_matches(key_no_spaces, aliases_no_spaces.keys(), n=1, cutoff=0.7)
+    if matches_no_spaces:
+        best_alias = aliases_no_spaces[matches_no_spaces[0]]
+        return _APP_ALIASES[best_alias].get(_SYSTEM, raw)
+
+    return raw
 
 def _bring_to_front_windows(app_name: str) -> bool:
     try:
@@ -321,7 +335,7 @@ def open_app(
 TOOL = {
     "name": "open_app",
     "scope": "exempt",
-    "description": "Opens any application on the computer. Use this whenever the user asks to open, launch, or start any app, website, or program. Always call this tool — never just say you opened it.",
+    "description": "Opens any application on the computer. Use this for ANY request to open, launch, or start an app, website, or program. DO NOT use web_search as a fallback if you are unsure of the app name. If this tool fails, report the failure directly to the user. Always call this tool — never just say you opened it.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

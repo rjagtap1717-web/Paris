@@ -1,6 +1,13 @@
 import platform as _platform
 import subprocess as _subprocess
 
+if _platform.system() == "Windows":
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
+
 # ── Nuclear: force CREATE_NO_WINDOW on EVERY subprocess call on Windows ───────
 # This patches Popen itself, so no per-file flag is needed anywhere.
 if _platform.system() == "Windows":
@@ -89,7 +96,7 @@ from core.wake_word            import (
 
 # How long the assistant stays awake with no user speech before it auto-sleeps
 # again (wake-word mode only).
-WAKE_SLEEP_TIMEOUT = 120.0   # seconds (2 minutes)
+WAKE_SLEEP_TIMEOUT = 15.0   # seconds (15-second conversational follow-up window)
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -395,19 +402,7 @@ TOOL_DECLARATIONS = [
             "required": ["action"],
         },
     },
-    {
-        "name": "shutdown_paris",
-        "description": (
-            "Shuts down the assistant completely. "
-            "Call this when the user expresses intent to end the conversation, "
-            "close the assistant, say goodbye, or stop Paris. "
-            "The user can say this in ANY language."
-        ),
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {},
-        }
-    },
+    # shutdown_paris tool removed as per user request
     {
         "name": "save_memory",
         "description": (
@@ -720,7 +715,7 @@ class ParisLive:
             if speaking:
                 continue
             if (time.monotonic() - self._last_user_speech) > self._wake_sleep_timeout:
-                self.sleep(reason="no speech for 2 minutes")
+                self.sleep(reason=f"no speech for {int(self._wake_sleep_timeout)} seconds")
 
     async def _run_presence_monitor(self) -> None:
         """Detects if user returns after 15 minutes of inactivity and greets them."""
@@ -1129,13 +1124,27 @@ class ParisLive:
         except Exception:
             _username = os.environ.get('USERNAME') or os.environ.get('USER') or 'Unknown'
             
+        try:
+            p1 = Path(os.environ.get('PROGRAMDATA', 'C:/ProgramData')) / 'Microsoft/Windows/Start Menu/Programs'
+            p2 = Path(os.environ.get('APPDATA', '')) / 'Microsoft/Windows/Start Menu/Programs'
+            apps = set()
+            for d in [p1, p2]:
+                if d.exists():
+                    for f in d.rglob("*.lnk"):
+                        name = f.stem
+                        if "uninstall" not in name.lower() and "setup" not in name.lower():
+                            apps.add(name)
+            installed_apps_str = "\n- Available Apps: " + ", ".join(sorted(list(apps))[:60])
+        except Exception:
+            installed_apps_str = ""
+
         dev_ctx = (
             f"SYSTEM ENVIRONMENT (Developer Level Access):\n"
             f"- OS: {_platform.system()} {_platform.release()}\n"
             f"- Username: {_username}\n"
             f"- Home Directory: {Path.home()}\n"
             f"- Downloads Directory: {Path.home() / 'Downloads'}\n"
-            f"- Current Working Directory: {os.getcwd()}\n"
+            f"- Current Working Directory: {os.getcwd()}{installed_apps_str}\n"
             f"CRITICAL: Always use accurate absolute paths based on the username above when searching for files. Do not guess usernames. Use the shortcuts 'home', 'desktop', 'downloads' where possible."
         )
 
@@ -1248,6 +1257,17 @@ class ParisLive:
         self._log_to_history("tool_call", f"{name}({json.dumps(args)})")
         self.ui.set_state("THINKING")
 
+        # --- Earcons (Sci-Fi Audio Feedback) ---
+        if name in ("open_app", "computer_control", "computer_settings", "desktop", "ide_agent", "file_processor", "file_controller"):
+            import threading
+            def _play_earcon():
+                try:
+                    import winsound
+                    winsound.Beep(1800, 50)
+                    winsound.Beep(2400, 70)
+                except Exception:
+                    pass
+            threading.Thread(target=_play_earcon, daemon=True).start()
 
         if name == "save_memory":
             category = args.get("category", "notes")
@@ -1631,11 +1651,12 @@ class ParisLive:
             # the echo of what we are playing right now", sustained long enough
             # that a cough or a keystroke cannot trigger it.
             if paris_speaking:
-                # Nothing is streamed while PARIS talks.
                 # User wants to interrupt ONLY by saying "Hey Jarvis"
-                det = self._wake_detector
-                if det is not None:
-                    det.feed(indata)
+                # Gate the wake detector with EchoGuard to prevent self-interruption from speaker echo
+                if self._echo.is_user_speech(indata, SEND_SAMPLE_RATE, _pcm_level(indata)):
+                    det = self._wake_detector
+                    if det is not None:
+                        det.feed(indata)
                 return
             
             barge_in_count[0] = 0
@@ -1670,6 +1691,22 @@ class ParisLive:
                     self.out_queue.put_nowait,
                     {"data": data, "mime_type": "audio/pcm"}
                 )
+                
+                # --- Whisper Detection ---
+                vol = _pcm_level(indata)
+                if vol > 0.015 and not getattr(self, "_is_speaking", False):
+                    if vol < 0.12:
+                        self._whisper_frames = getattr(self, "_whisper_frames", 0) + 1
+                        self._loud_frames = 0
+                    else:
+                        self._whisper_frames = 0
+                        self._loud_frames = getattr(self, "_loud_frames", 0) + 1
+                    
+                    if getattr(self, "_whisper_frames", 0) > 10:  # Sustained quiet speech
+                        self._is_whispering = True
+                    elif getattr(self, "_loud_frames", 0) > 3:    # Sudden loud speech breaks whisper mode
+                        self._is_whispering = False
+
                 # Feed the live mic level to the HUD so the waveform reacts to
                 # the user's actual voice while listening. Purely cosmetic — any
                 # failure here must never disturb the mic.
@@ -1980,6 +2017,12 @@ class ParisLive:
                 # level and let the HUD play it out in step with the audio.
                 try:
                     pcm = np.frombuffer(bytes(batch), dtype=np.int16)
+                    
+                    # --- Whisper Mode Volume Adjustment ---
+                    if getattr(self, "_is_whispering", False):
+                        pcm = np.clip(pcm.astype(np.float32) * 0.3, -32768, 32767).astype(np.int16)
+                        batch = pcm.tobytes()
+                        
                     hop = _VIS_HOP / RECEIVE_SAMPLE_RATE
                     frames = _pcm_visemes(pcm, sr=RECEIVE_SAMPLE_RATE)
                     # When does this batch become audible? The stream was

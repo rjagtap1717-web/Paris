@@ -9,6 +9,11 @@ import sys
 
 if platform.system() == "Windows":
     _WIN_HIDE: dict = {"creationflags": subprocess.CREATE_NO_WINDOW}
+    try:
+        import ctypes
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
 else:
     _WIN_HIDE: dict = {}
 import time
@@ -246,8 +251,15 @@ def _press(key: str) -> str:
 def _scroll(direction: str = "down", amount: int = 3) -> str:
     _require_pyautogui()
     vertical   = direction in ("up", "down")
-    clicks     = amount if direction in ("up", "right") else -amount
-    pyautogui.scroll(clicks) if vertical else pyautogui.hscroll(clicks)
+    clicks_amount = amount
+    if _get_os() == "windows":
+        clicks_amount *= 120
+    clicks = clicks_amount if direction in ("up", "right") else -clicks_amount
+    w, h = pyautogui.size()
+    if vertical:
+        pyautogui.scroll(clicks, x=w//2, y=h//2)
+    else:
+        pyautogui.hscroll(clicks, x=w//2, y=h//2)
     return f"Scrolled {direction} ×{amount}"
 
 
