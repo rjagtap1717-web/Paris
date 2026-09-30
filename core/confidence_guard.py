@@ -1,7 +1,6 @@
 MUST_VERIFY_BEFORE_CONFIRM = {
     "send_message",
     "reminder",
-    "flight_finder",
     "office_suite",
     "coding_agent"
 }
