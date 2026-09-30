@@ -5,14 +5,27 @@ from actions.powerpoint_controller import powerpoint_controller as ppt_handler
 def office_suite(parameters: dict, response=None, player=None, session_memory=None) -> str:
     app = parameters.get("app", "").lower().strip()
     
-    if app == "word":
-        return word_handler(parameters, response, player, session_memory)
-    elif app == "excel":
-        return excel_handler(parameters, response, player, session_memory)
-    elif app in ["powerpoint", "ppt"]:
-        return ppt_handler(parameters, response, player, session_memory)
-    else:
-        return "Error: You must specify app as 'word', 'excel', or 'powerpoint'."
+    try:
+        from core.resource_lock import acquire_lock, release_lock
+        locked = acquire_lock(f"com_{app}", timeout=10)
+        if not locked:
+            return f"[RESOURCE_LOCKED] The {app} app is currently being used by another background task. Please try again in a moment."
+            
+        if app == "word":
+            res = word_handler(parameters, response, player, session_memory)
+        elif app == "excel":
+            res = excel_handler(parameters, response, player, session_memory)
+        elif app in ["powerpoint", "ppt"]:
+            res = ppt_handler(parameters, response, player, session_memory)
+        else:
+            res = "Error: You must specify app as 'word', 'excel', or 'powerpoint'."
+            
+        return res
+    finally:
+        try:
+            release_lock(f"com_{app}")
+        except Exception:
+            pass
 
 TOOL = {
     "name": "office_suite",

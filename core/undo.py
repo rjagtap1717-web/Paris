@@ -119,3 +119,34 @@ def clear() -> None:
     file contents do not outlive the session."""
     with _lock:
         _stack.clear()
+
+def push_file_undo(filepath: str, action_label: str) -> str:
+    """
+    Takes a snapshot of a file (if under 1MB) and pushes an undo function.
+    Returns a warning string if the file was too large to snapshot, else empty string.
+    Call this BEFORE modifying the file.
+    """
+    import os
+    if not os.path.exists(filepath):
+        # File didn't exist, so undoing means deleting it.
+        def undo_create():
+            try: os.remove(filepath)
+            except: pass
+            return "Deleted newly created file."
+        push_undo(action_label, undo_create)
+        return ""
+        
+    size = os.path.getsize(filepath)
+    if size > 1024 * 1024: # 1MB limit
+        return f"[WARNING] The file {filepath} is too large (>1MB) to snapshot in memory. This action cannot be undone."
+        
+    with open(filepath, "rb") as f:
+        snapshot = f.read()
+        
+    def undo_modify():
+        with open(filepath, "wb") as f:
+            f.write(snapshot)
+        return "Restored file from snapshot."
+        
+    push_undo(action_label, undo_modify)
+    return ""

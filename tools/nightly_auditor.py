@@ -140,8 +140,17 @@ def run_audit():
                 "findings": report_data
             }
             
-            with open(REPORT_FILE, "w", encoding="utf-8") as f:
+            temp_file = REPORT_FILE.with_suffix(".tmp")
+            
+            with open(temp_file, "w", encoding="utf-8") as f:
                 json.dump(final_report, f, indent=4)
+                
+            # Validate before moving
+            with open(temp_file, "r", encoding="utf-8") as f:
+                json.load(f) # Will throw if corrupt
+                
+            # Atomic replace (safe from crashes midway)
+            os.replace(temp_file, REPORT_FILE)
                 
             print(f"Audit complete! Found {len(report_data)} issues. Report saved to {REPORT_FILE}")
             

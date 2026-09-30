@@ -44,11 +44,24 @@ def os_control(parameters: dict, response=None, player=None, session_memory=None
         "hotkey", "press", "scroll", "copy", "paste", "screenshot"
     }
     
-    if action in cc_actions:
-        return cc_handler(parameters, response, player, session_memory)
-    else:
-        # Route everything else (volume, brightness, window management, wifi) to settings
-        return cs_handler(parameters, response, player, session_memory)
+    try:
+        from core.resource_lock import acquire_lock, release_lock
+        locked = acquire_lock("pyautogui", timeout=10)
+        if not locked:
+            return "[RESOURCE_LOCKED] The mouse/keyboard is currently being used by another background task. Please try again in a moment."
+            
+        if action in cc_actions:
+            res = cc_handler(parameters, response, player, session_memory)
+        else:
+            # Route everything else (volume, brightness, window management, wifi) to settings
+            res = cs_handler(parameters, response, player, session_memory)
+            
+        return res
+    finally:
+        try:
+            release_lock("pyautogui")
+        except Exception:
+            pass
 
 TOOL = {
     "name": "os_control",

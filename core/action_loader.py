@@ -108,7 +108,16 @@ class ActionRegistry:
             return f"Action '{name}' is not available."
         ctx = ctx or {}
         
-        # 1. Parameter Guard (Prevent Hallucinations)
+        # 0. API Spend Cap Check
+        try:
+            from core.spend_governor import check_spend_cap, record_tool_call
+            cap_err = check_spend_cap(name)
+            if cap_err:
+                return cap_err
+        except ImportError:
+            pass
+        
+        # 1. Parameter Guard (Prevent Hallucinations & Error Propagation)
         try:
             from core.param_guard import check_param_guard
             guard_error = check_param_guard(name, parameters)
@@ -122,10 +131,31 @@ class ActionRegistry:
             if res is None:
                 res = "Done."
                 
+            # Record successful call for cap
+            try:
+                from core.spend_governor import record_tool_call
+                record_tool_call()
+            except ImportError:
+                pass
+                
             # 2. Circuit Breaker (Prevent Infinite Loops)
             try:
                 from core.circuit_breaker import check_circuit_breaker
                 res = check_circuit_breaker(name, parameters, str(res), ctx.get("session_memory"))
+            except ImportError:
+                pass
+                
+            # 3. Content Sanitizer (Prevent Prompt Injection)
+            try:
+                from core.content_sanitizer import sanitize_output
+                res = sanitize_output(res)
+            except ImportError:
+                pass
+                
+            # 4. Confidence Guard (Prevent False Certainty)
+            try:
+                from core.confidence_guard import enforce_confidence
+                res = enforce_confidence(name, res)
             except ImportError:
                 pass
                 
