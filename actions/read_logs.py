@@ -24,7 +24,9 @@ def read_logs(parameters=None, **kwargs) -> str:
                 parsed_lines.append(msg)
             except Exception:
                 parsed_lines.append(line.strip()) # Fallback for non-JSON lines
-        return "\n".join(parsed_lines)
+                
+        from core.response_limiter import truncate_response
+        return truncate_response("\n".join(parsed_lines), max_chars=4000, escape_hint="Call read_logs again with fewer lines if you need detail.")
     except Exception as e:
         return f"Error reading logs: {e}"
 

@@ -106,15 +106,42 @@ class ActionRegistry:
         rec = self._actions.get(name)
         if rec is None or not rec.valid:
             return f"Action '{name}' is not available."
+        ctx = ctx or {}
+        
+        # 1. Parameter Guard (Prevent Hallucinations)
         try:
-            res = _call_handler(rec.handler, parameters, ctx or {})
+            from core.param_guard import check_param_guard
+            guard_error = check_param_guard(name, parameters)
+            if guard_error:
+                return guard_error
+        except ImportError:
+            pass
+            
+        try:
+            res = _call_handler(rec.handler, parameters, ctx)
             if res is None:
-                return "Done."
+                res = "Done."
+                
+            # 2. Circuit Breaker (Prevent Infinite Loops)
+            try:
+                from core.circuit_breaker import check_circuit_breaker
+                res = check_circuit_breaker(name, parameters, str(res), ctx.get("session_memory"))
+            except ImportError:
+                pass
+                
             return res
         except Exception as e:
             self._logger(f"Action '{name}' crashed during run(): {e}")
             traceback.print_exc()
-            return f"Tool '{name}' failed: {e}"
+            err_res = f"Tool '{name}' failed: {e}"
+            
+            try:
+                from core.circuit_breaker import check_circuit_breaker
+                err_res = check_circuit_breaker(name, parameters, err_res, ctx.get("session_memory"))
+            except ImportError:
+                pass
+                
+            return err_res
 
 
 def _call_handler(fn: Callable, parameters: dict, ctx: dict) -> Any:

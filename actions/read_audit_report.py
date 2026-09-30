@@ -49,7 +49,8 @@ def read_audit_report(parameters: dict, player=None, session_memory=None) -> str
         if player:
             player.write_log("SYS: Read audit report successfully.")
             
-        return summary
+        from core.response_limiter import truncate_response
+        return truncate_response(summary, max_chars=4000, escape_hint="Call read_audit_report again with detail='summary' if it is too long.")
         
     except Exception as e:
         return f"Error reading the audit report: {e}"
