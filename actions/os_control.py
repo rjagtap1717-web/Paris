@@ -54,6 +54,10 @@ def os_control(parameters: dict, response=None, player=None, session_memory=None
             res = cc_handler(parameters, response, player, session_memory)
         else:
             # Route everything else (volume, brightness, window management, wifi) to settings
+            title = parameters.get("title", "").strip()
+            if title and action in {"full_screen", "fullscreen", "minimize", "maximize", "close_window", "snap_left", "snap_right", "switch_window"}:
+                cc_handler({"action": "focus_window", "title": title}, response, player, session_memory)
+                time.sleep(0.5)
             res = cs_handler(parameters, response, player, session_memory)
             
         return res

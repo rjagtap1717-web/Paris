@@ -1,82 +1,70 @@
 import os
 import time
-import hashlib
+import json
+import re
 from pathlib import Path
 import threading
 
-# Point this to a subfolder so SQLite has a place to write
-DB_PATH = Path(__file__).resolve().parent / "chroma_db"
-
-_collection = None
+# Tier 3 Long-Term Memory (Lightweight JSON Store)
+DB_PATH = Path(__file__).resolve().parent / "semantic_memory.json"
 _lock = threading.Lock()
 
-def _get_collection():
-    global _collection
-    if _collection is not None:
-        return _collection
-        
+def _get_facts() -> list:
+    if not DB_PATH.exists():
+        return []
     try:
-        with _lock:
-            if _collection is not None:
-                return _collection
-                
-            # Only import chromadb when first used to prevent slow startup times
-            import chromadb
-            from chromadb.config import Settings
-            
-            # Use PersistentClient to keep memory on disk
-            client = chromadb.PersistentClient(
-                path=str(DB_PATH),
-                settings=Settings(anonymized_telemetry=False)
-            )
-            
-            # The default embedding function is sentence-transformers/all-MiniLM-L6-v2
-            _collection = client.get_or_create_collection(name="paris_long_term_memory")
-            return _collection
-    except ImportError:
-        print("[Vector Brain] Error: chromadb is not installed. Run 'pip install chromadb'")
-        return None
-    except Exception as e:
-        print(f"[Vector Brain] Failed to initialize: {e}")
-        return None
+        with open(DB_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def _save_facts(facts: list):
+    with _lock:
+        with open(DB_PATH, "w", encoding="utf-8") as f:
+            json.dump(facts, f, indent=2, ensure_ascii=False)
 
 def store_fact(fact: str) -> str:
-    """Stores a fact semantically in the vector DB."""
-    col = _get_collection()
-    if not col:
-        return "[ERROR] Vector database is offline or not installed."
+    """Stores a fact permanently."""
+    if not fact or not fact.strip():
+        return "[ERROR] Fact is empty."
         
-    fact_id = hashlib.md5(fact.encode()).hexdigest()
-    
-    try:
-        col.add(
-            documents=[fact],
-            metadatas=[{"timestamp": time.time()}],
-            ids=[fact_id]
-        )
-        return f"Fact memorized permanently: '{fact}'"
-    except Exception as e:
-        return f"[ERROR] Failed to store fact: {e}"
+    facts = _get_facts()
+    # Deduplicate
+    if fact in [f.get("text") for f in facts]:
+        return "Fact is already in memory."
+        
+    facts.append({
+        "text": fact,
+        "timestamp": time.time()
+    })
+    _save_facts(facts)
+    return f"Fact memorized permanently: '{fact}'"
+
+def _tokenize(text: str) -> set:
+    words = re.findall(r'\b\w+\b', text.lower())
+    # Remove common stop words
+    stop_words = {"a", "an", "the", "is", "are", "was", "were", "to", "in", "for", "of", "on", "with", "and", "or", "my", "your", "his", "her", "their", "user"}
+    return set(w for w in words if w not in stop_words)
 
 def search_facts(query: str, n_results: int = 3) -> list[str]:
-    """Semantically searches the vector DB for relevant facts."""
-    col = _get_collection()
-    if not col:
+    """Searches memory using keyword overlap."""
+    facts = _get_facts()
+    if not facts:
         return []
         
-    try:
-        # Avoid querying if DB is totally empty
-        if col.count() == 0:
-            return []
+    query_tokens = _tokenize(query)
+    if not query_tokens:
+        return []
+        
+    scored = []
+    for f in facts:
+        text = f.get("text", "")
+        fact_tokens = _tokenize(text)
+        overlap = len(query_tokens.intersection(fact_tokens))
+        if overlap > 0:
+            # Score = overlap count / length of fact to heavily favor precise matches
+            score = overlap / max(1.0, len(fact_tokens)**0.5)
+            scored.append((score, text))
             
-        results = col.query(
-            query_texts=[query],
-            n_results=n_results
-        )
-        
-        if results and "documents" in results and results["documents"]:
-            return results["documents"][0]
-        return []
-    except Exception as e:
-        print(f"[Vector Brain] Search failed: {e}")
-        return []
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [text for score, text in scored[:n_results]]

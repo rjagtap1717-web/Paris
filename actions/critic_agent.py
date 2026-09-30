@@ -14,7 +14,8 @@ Your job is to review the following WORK against the original TASK.
 CRITICAL RULES:
 1. If the 'WORK TO REVIEW' appears to be a summary, outline, or high-level description of the work rather than the literal exact raw text/code of the work itself, you MUST fail it immediately. Tell the agent they must submit the exact raw content for peer review.
 2. If the work completely satisfies the task and has no critical errors, set "status": "PASS".
-3. If the work fails, is incomplete, has typos, or misses any subtle details from the task, set "status": "FAIL" and provide a detailed "feedback" string.
+3. If the work involves OS control or window management (minimize, maximize, fullscreen, close), VERIFY that the agent intends to use explicit target window titles/locks. If they plan to fire blind keystrokes without specifying the `title` parameter in `os_control`, FAIL them.
+4. If the work fails, is incomplete, has typos, or misses any subtle details from the task, set "status": "FAIL" and provide a detailed "feedback" string.
 
 You must return your response in purely valid JSON format.
 
@@ -63,7 +64,7 @@ Return only JSON:
 TOOL = {
     "name": "critic_agent",
     "scope": "local",
-    "description": "An internal senior peer-reviewer. Use this to double-check your own work (e.g., text, code, document content) BEFORE delivering it to the user. It will grade your work PASS or FAIL. WARNING: You MUST submit the EXACT raw text of your slides/document to the 'work' parameter. Do NOT submit a summary. If you submit a summary, the critic will automatically fail you.",
+    "description": "An internal senior peer-reviewer. Use this to double-check your own work (e.g., text, code, document content, or planned OS window control actions) BEFORE delivering it to the user. It will grade your work PASS or FAIL. WARNING: You MUST submit the EXACT raw text or exact planned action parameters to the 'work' parameter. Do NOT submit a summary. If you submit a summary or plan blind keystrokes without explicit window targets, the critic will automatically fail you.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

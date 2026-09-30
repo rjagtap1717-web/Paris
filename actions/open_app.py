@@ -108,6 +108,8 @@ def _bring_to_front_windows(app_name: str) -> bool:
             search_term = "microsoft edge"
         elif search_term == "code" or search_term == "vscode":
             search_term = "visual studio code"
+        elif search_term == "agy":
+            search_term = "antigravity"
             
         def callback(hwnd, extra):
             if user32.IsWindowVisible(hwnd):

@@ -36,10 +36,19 @@ Modular capabilities that the assistant can invoke.
 *   `web_search.py`: Internet search logic (DDG fallback).
 *   `background_monitor.py` & `system_monitor.py`: Background telemetry and news watching.
 
-## Configuration, Memory & Logs
+## Configuration, Memory & Security
 *   `config/api_keys.json`: Global configuration storing API keys, assistant name ("PARIS"), voice choice, HUD color theme, and toggle states.
 *   `logs/paris_debug.log`: Central debug and event log file capturing UI events, tool calls, confirmation status, and diagnostic output.
-*   `memory/`: Contains the SQLite database and `memory_manager.py` for long-term and session memory.
+*   `memory/`: 
+    *   **Tier 1**: Short-term exact context window memory (managed by LLM chat state).
+    *   **Tier 2**: TTL Scratchpad memory (volatile JSON store for transient goals/tasks).
+    *   **Tier 3**: Vector Brain (`semantic_memory.json`), a zero-dependency local JSON vector-style overlapping keyword search for permanent semantic knowledge.
+*   **Security & Safety**:
+    *   `core.jev_gate.py`: Safety decision layer checking for destructive actions.
+    *   `core.resource_lock`: Prevents blind concurrent OS keystrokes/actions using global mutexes.
+    *   **Focus Locking**: `os_control` forces target window handles to front before executing blind keystrokes (like F11 or Win+Down).
+    *   `core.content_sanitizer.py`: Strips system prompts/jailbreaks before LLM ingestion.
+    *   `core.spend_governor.py`: Circuit breaker for preventing API token budget overruns.
 
 ## Plugins (`plugins/`)
 *   `_template.py`: A drop-in template for creating new custom skills.

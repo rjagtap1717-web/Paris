@@ -1,0 +1,34 @@
+import sys
+import time
+
+def system_power(parameters: dict, **kwargs) -> str:
+    action = parameters.get("action", "").lower().strip()
+    
+    if action == "restart":
+        print("[PARIS] Initiating self-restart sequence (Exit Code 42)...")
+        time.sleep(1)
+        sys.exit(42)
+        
+    elif action == "shutdown":
+        print("[PARIS] Initiating graceful shutdown (Exit Code 0)...")
+        time.sleep(1)
+        sys.exit(0)
+        
+    return "Invalid action. Use 'restart' or 'shutdown'."
+
+TOOL = {
+    "name": "system_power",
+    "scope": "local",
+    "description": "Use this to restart yourself to apply new code changes, or to shut yourself down completely if the user asks.",
+    "parameters": {
+        "type": "OBJECT",
+        "properties": {
+            "action": {
+                "type": "STRING",
+                "description": "'restart' to reboot immediately (applies code changes), or 'shutdown' to exit permanently."
+            }
+        },
+        "required": ["action"]
+    },
+    "handler": system_power
+}

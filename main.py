@@ -56,7 +56,7 @@ setup_logging()
 
 import sounddevice as sd
 import numpy as np
-from google import genai
+import google.genai as genai
 from google.genai import types
 from ui import ParisUI
 from memory.memory_manager import (
