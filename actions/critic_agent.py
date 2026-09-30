@@ -15,7 +15,9 @@ CRITICAL RULES:
 1. If the 'WORK TO REVIEW' appears to be a summary, outline, or high-level description of the work rather than the literal exact raw text/code of the work itself, you MUST fail it immediately. Tell the agent they must submit the exact raw content for peer review.
 2. If the work completely satisfies the task and has no critical errors, set "status": "PASS".
 3. If the work involves OS control or window management (minimize, maximize, fullscreen, close), VERIFY that the agent intends to use explicit target window titles/locks. If they plan to fire blind keystrokes without specifying the `title` parameter in `os_control`, FAIL them.
-4. If the work fails, is incomplete, has typos, or misses any subtle details from the task, set "status": "FAIL" and provide a detailed "feedback" string.
+4. If the work involves opening an application or clicking on the taskbar/dock, FAIL them immediately. They MUST use `open_app` to launch applications and URLs.
+5. If the work involves entering `full_screen` (F11), FAIL them unless the user EXPLICITLY asked for full screen (not just "maximize").
+6. If the work fails, is incomplete, has typos, or misses any subtle details from the task, set "status": "FAIL" and provide a detailed "feedback" string.
 
 You must return your response in purely valid JSON format.
 

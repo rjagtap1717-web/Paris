@@ -76,16 +76,16 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "Examples: type, click, scroll, screenshot, hotkey, volume_up, brightness_down, close_window, full_screen, toggle_wifi, sleep_display."
+                "description": "Examples: type, click, scroll, screenshot, hotkey, volume_up, brightness_down, close_window, minimize_window, maximize_window, toggle_wifi, sleep_display. DO NOT use full_screen unless explicitly requested by the user."
             },
             "text": {"type": "STRING", "description": "Text to type or paste"},
             "x": {"type": "INTEGER", "description": "X coordinate"},
             "y": {"type": "INTEGER", "description": "Y coordinate"},
-            "keys": {"type": "STRING", "description": "Hotkey combo e.g. 'ctrl+c'"},
+            "keys": {"type": "STRING", "description": "Hotkey combo e.g. 'ctrl+w' to close tabs"},
             "key": {"type": "STRING", "description": "Single key e.g. 'enter'"},
             "direction": {"type": "STRING", "description": "up | down | left | right"},
             "amount": {"type": "INTEGER", "description": "Scroll amount"},
-            "description": {"type": "STRING", "description": "Element description to find on screen (for screen_click) OR semantic intent (for settings)"},
+            "description": {"type": "STRING", "description": "Element description to find on screen (for screen_click) OR semantic intent (for settings). CRITICAL RULE: NEVER use screen_click to click taskbar or desktop icons to open apps. ALWAYS use the open_app tool."},
             "value": {"type": "INTEGER", "description": "Absolute value for volume/brightness"},
             "title": {"type": "STRING", "description": "Window title to focus"},
             "expected_window": {"type": "STRING", "description": "Optional: Title fragment (e.g. 'Chrome') to guarantee focus BEFORE typing/clicking. Will auto-abort if a different app is active."}

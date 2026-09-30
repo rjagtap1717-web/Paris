@@ -993,7 +993,7 @@ def _log(player, text: str):
 TOOL = {
     "name": "browser_control",
     "scope": "network",
-    "description": "Controls a standalone, automated web browser profile. Use for background web tasks, scraping, and automated navigation. IMPORTANT: This tool uses an isolated browser profile to prevent crashing the user's active browser. If you hit a login screen, you may freely use the user's email 'rjagtap1717@gmail.com'. If you specifically need to interact with a browser the user ALREADY has open on their screen, DO NOT use this tool; instead, use 'computer_control' and 'computer_settings' to visually click and type on their existing window.",
+    "description": "Controls a standalone, automated web browser profile. Use for background web tasks, scraping, and automated navigation. IMPORTANT: This tool uses an isolated browser profile to prevent crashing the user's active browser. If you hit a login screen, you may freely use the user's email 'rjagtap1717@gmail.com'. To simply open a URL in the user's default browser, DO NOT use this tool; use the `open_app` tool with the URL instead.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

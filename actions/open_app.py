@@ -340,13 +340,13 @@ def open_app(
 TOOL = {
     "name": "open_app",
     "scope": "exempt",
-    "description": "Opens any application on the computer. Use this for ANY request to open, launch, or start an app, website, or program. DO NOT use web_search as a fallback if you are unsure of the app name. If this tool fails, report the failure directly to the user. Always call this tool — never just say you opened it.",
+    "description": "Opens any application OR WEBSITE on the computer natively. Use this for ANY request to open, launch, or start an app, website, or program. For websites, pass the full URL (e.g. 'https://youtube.com') as the app_name. CRITICAL: This is the ONLY acceptable way to open apps. NEVER use os_control to click taskbar icons, dock icons, or shortcuts. If this tool fails, report the failure directly to the user.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
             "app_name": {
                 "type": "STRING",
-                "description": "Exact name of the application (e.g. 'WhatsApp', 'Chrome', 'Spotify')"
+                "description": "Exact name of the application (e.g. 'WhatsApp', 'Chrome') OR a URL (e.g. 'https://youtube.com')"
             }
         },
         "required": [
