@@ -1116,6 +1116,15 @@ class ParisLive:
                 has_mic=True,
             ),
         })
+        
+        # ── Inject Tier 2 TTL Scratchpad ──
+        try:
+            from memory.scratchpad_manager import get_scratchpad
+            pad = get_scratchpad()
+            if pad:
+                sys_prompt += f"\n\nCURRENT ACTIVE GOAL (TTL SCRATCHPAD):\n{pad}\n(This is your active working context. You can update or clear it using the 'manage_scratchpad' tool.)"
+        except Exception as e:
+            pass
 
         import os
         from pathlib import Path
