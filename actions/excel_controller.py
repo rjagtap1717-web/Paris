@@ -113,35 +113,4 @@ def excel_controller(parameters: dict, response=None, player=None, session_memor
         pythoncom.CoUninitialize()
 
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
-TOOL = {
-    "name": "excel_controller",
-    "scope": "local",
-    "description": "Strictly for LOCAL desktop Excel files (.xlsx). Do not use this for online spreadsheets. Natively control Microsoft Excel (COM integration). Use this INSTEAD of computer_control when working in Excel. Flawlessly write/read cells, format, and navigate.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "action": {
-                "type": "STRING",
-                "description": "new | write_cell | read_cell | read_range | add_sheet | scroll_down | scroll_up | save"
-            },
-            "cell": {
-                "type": "STRING",
-                "description": "Cell or range (e.g. 'A1' or 'A1:C5')"
-            },
-            "value": {
-                "type": "STRING",
-                "description": "Value to write to cell, or name for new sheet"
-            },
-            "formatting": {
-                "type": "OBJECT",
-                "description": "Optional formatting dict for write_cell: {\"bold\": true, \"italic\": false, \"number_format\": \"0.00%\"}"
-            },
-            "file_path": {
-                "type": "STRING",
-                "description": "File path for save action"
-            }
-        },
-        "required": ["action"]
-    },
-    "handler": excel_controller
-}
+# TOOL block removed. Use office_suite.py facade instead.

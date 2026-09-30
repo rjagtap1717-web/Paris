@@ -172,47 +172,4 @@ def powerpoint_controller(parameters: dict, response=None, player=None, session_
         pythoncom.CoUninitialize()
 
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
-TOOL = {
-    "name": "powerpoint_controller",
-    "scope": "local",
-    "description": "Natively control Microsoft PowerPoint (COM integration). Create presentations, add slides, update slide text, and navigate directly without UI automation.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "action": {
-                "type": "STRING",
-                "description": "new | add_slide | update_slide | read_slide | go_to_slide | apply_theme | add_image | save"
-            },
-            "slide_index": {
-                "type": "INTEGER",
-                "description": "1-based integer for slide index"
-            },
-            "title": {
-                "type": "STRING",
-                "description": "Title text for slide"
-            },
-            "content": {
-                "type": "STRING",
-                "description": "Body text for slide"
-            },
-            "layout": {
-                "type": "STRING",
-                "description": "For add_slide: 'title' | 'title_and_content' | 'blank'"
-            },
-            "file_path": {
-                "type": "STRING",
-                "description": "File path for save action"
-            },
-            "theme_name": {
-                "type": "STRING",
-                "description": "For apply_theme: name of the theme (e.g. 'Gallery', 'Facet', 'Ion') or full path to a .thmx file"
-            },
-            "image_path": {
-                "type": "STRING",
-                "description": "For add_image: absolute path to the image file to insert into the slide"
-            }
-        },
-        "required": ["action"]
-    },
-    "handler": powerpoint_controller
-}
+# TOOL block removed. Use office_suite.py facade instead.

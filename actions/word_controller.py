@@ -98,27 +98,4 @@ def word_controller(parameters: dict, response=None, player=None, session_memory
         pythoncom.CoUninitialize()
 
 # ── Tool declaration (auto-discovered by core/action_loader.py) ──────────────
-TOOL = {
-    "name": "word_controller",
-    "scope": "local",
-    "description": "Natively control Microsoft Word (COM integration). Use this INSTED of computer_control/vision when working in Word. Can flawlessly type, format text, scroll, read, and save.",
-    "parameters": {
-        "type": "OBJECT",
-        "properties": {
-            "action": {
-                "type": "STRING",
-                "description": "new | type | enter | scroll_down | scroll_up | read | save"
-            },
-            "text": {
-                "type": "STRING",
-                "description": "Text to type (for 'type') OR file path (for 'save')"
-            },
-            "formatting": {
-                "type": "OBJECT",
-                "description": "Optional dict for 'type': {\"bold\": true, \"italic\": false, \"size\": 14}"
-            }
-        },
-        "required": ["action"]
-    },
-    "handler": word_controller
-}
+# TOOL block removed. Use office_suite.py facade instead.

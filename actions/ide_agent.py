@@ -41,7 +41,7 @@ def ide_agent(parameters: dict, response=None, player=None, session_memory=None,
     return "Task dispatched to Antigravity IDE in the background. Tell the user you've started the task and will let them know when it's finished."
 
 TOOL = {
-    "name": "ide_agent",
+    "name": "antigravity_delegate",
     "scope": "exempt",
     "description": "Use this tool to delegate complex coding tasks, scaffolding projects, or multi-file edits to the Antigravity IDE Agent. The agent will run autonomously and has full filesystem and execution capabilities.",
     "parameters": {
