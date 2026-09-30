@@ -2,15 +2,7 @@ import threading
 import time
 import os
 
-try:
-    import cv2
-    import numpy as np
-    import pyautogui
-    import mediapipe as mp
-    from mediapipe.python.solutions import hands as mp_hands
-    _HAS_DEPS = True
-except ImportError:
-    _HAS_DEPS = False
+
 
 _gesture_thread = None
 _stop_gestures = False
@@ -36,7 +28,13 @@ def is_open_palm(hand_landmarks):
 def gesture_control(parameters: dict, player=None, speak=None, **kwargs) -> str:
     global _gesture_thread, _stop_gestures
     
-    if not _HAS_DEPS:
+    try:
+        import cv2
+        import numpy as np
+        import pyautogui
+        import mediapipe as mp
+        from mediapipe.python.solutions import hands as mp_hands
+    except ImportError:
         return "Error: The gesture control module requires mediapipe. Please run 'pip install mediapipe opencv-python pyautogui' first."
         
     action = parameters.get("action", "start")

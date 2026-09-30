@@ -1056,6 +1056,15 @@ class ParisLive:
 
     def _build_config(self) -> types.LiveConnectConfig:
         from datetime import datetime
+        
+        # ── 60-second Config Cache to speed up reconnects ──
+        if hasattr(self, "_cached_config") and hasattr(self, "_cached_config_time"):
+            import time
+            if time.time() - self._cached_config_time < 60:
+                # Need to safely copy or just return the same config, but
+                # we also need to ensure the resume handle is up to date.
+                self._cached_config.session_resumption = types.SessionResumptionConfig(handle=self._resume_handle)
+                return self._cached_config
 
         # Load customization from config
         try:
@@ -1102,11 +1111,38 @@ class ParisLive:
         # the host, the capability list from the registries that were just
         # discovered. Rename the assistant, add a plugin or move to another OS
         # and this follows without anyone editing a prompt.
-        _all_decls = (TOOL_DECLARATIONS
+        # Combine all tools
+        raw_decls = (TOOL_DECLARATIONS
                       + self._action_registry.get_tool_declarations()
                       + self._plugin_registry.get_tool_declarations())
+                      
+        # ── Plan #1 (Option D): Tool Description Compression ──
+        # Reduce token bloat by shortening descriptions of standard tools,
+        # while keeping always-on or critical tools verbose.
+        _all_decls = []
+        ALWAYS_ON = {"manage_scratchpad", "manage_vector_memory", "save_memory", "search_memory", "screen_process"}
+        
+        for decl in raw_decls:
+            if isinstance(decl, dict) and "name" in decl and "description" in decl:
+                d_copy = dict(decl)
+                name = d_copy["name"]
+                
+                # If not a critical tool, aggressively compress the description
+                # to save ~7000 tokens of bloat across 38 tools.
+                if name not in ALWAYS_ON and len(d_copy["description"]) > 100:
+                    # Keep the first sentence or first 100 chars
+                    desc = d_copy["description"].split(". ")[0] + "."
+                    if len(desc) > 120:
+                        desc = desc[:117] + "..."
+                    d_copy["description"] = desc
+                    
+                _all_decls.append(d_copy)
+            else:
+                _all_decls.append(decl)
+                
         _names = {(d.get("name") if isinstance(d, dict) else getattr(d, "name", ""))
                   for d in _all_decls}
+        
         sys_prompt = _render_prompt(sys_prompt, {
             "assistant_name": self._asst_name,
             "platform": f"{_platform.system()} {_platform.release()}".strip(),
@@ -1200,7 +1236,13 @@ class ParisLive:
         if self._tuned_live:
             cfg.update(self._tuning_config())
 
-        return types.LiveConnectConfig(**cfg)
+        final_config = types.LiveConnectConfig(**cfg)
+        
+        import time
+        self._cached_config = final_config
+        self._cached_config_time = time.time()
+        
+        return final_config
 
     def _tuning_config(self) -> dict:
         """The optional knobs, kept apart so one bad field can be dropped wholesale.

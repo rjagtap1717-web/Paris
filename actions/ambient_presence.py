@@ -1,8 +1,7 @@
 import threading
 import time
 import os
-import cv2
-import numpy as np
+
 
 try:
     from actions.screen_processor import _capture_camera
@@ -27,6 +26,9 @@ def ambient_presence(parameters: dict, player=None, speak=None, **kwargs) -> str
     _stop_presence = False
     
     def _worker():
+        import cv2
+        import numpy as np
+        
         # Load OpenCV's extremely lightweight, built-in face detection model
         cascade_path = os.path.join(cv2.data.haarcascades, 'haarcascade_frontalface_default.xml')
         face_cascade = cv2.CascadeClassifier(cascade_path)
