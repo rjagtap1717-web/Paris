@@ -18,6 +18,8 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 PROMPT = """You are a Senior Python Developer and Security Auditor working on the 'Paris' AI assistant framework.
 Your task is to review the following Python files. Find bugs, unhandled exceptions, unused features, or bad performance logic.
 
+CRITICAL FOCUS (TOOL OVERLAPS): Pay special attention to the `TOOL` dictionary at the bottom of these files. If two different tools have overlapping capabilities (e.g. two tools can 'browse the web' or 'edit excel'), flag it! You must suggest updating the "description" fields to strictly demarcate them so the Paris AI never gets confused about which one to use.
+
 IMPORTANT: Do not just run the same test. Look for edge cases, missing error boundaries, and race conditions.
 
 You must output your findings EXACTLY as a JSON array of objects. Do not wrap it in markdown. Do not include any intro text.
@@ -32,7 +34,7 @@ Each object must strictly follow this JSON schema:
 
 Rules for 'resolution_track':
 - 'AUTO_FIXABLE': Missing imports, syntax errors, PEP 8 fixes, unused variables, minor deterministic logic.
-- 'PAIR_PROGRAMMING': Core architectural changes, UI/UX flows, delicate timing logic (e.g. PyAutoGUI delays), plugin refactors.
+- 'PAIR_PROGRAMMING': Tool overlaps/ambiguities, core architectural changes, UI/UX flows, delicate timing logic, plugin refactors.
 
 Files to analyze:
 """

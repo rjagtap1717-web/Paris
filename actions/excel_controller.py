@@ -116,7 +116,7 @@ def excel_controller(parameters: dict, response=None, player=None, session_memor
 TOOL = {
     "name": "excel_controller",
     "scope": "local",
-    "description": "Natively control Microsoft Excel (COM integration). Use this INSTEAD of computer_control when working in Excel. Flawlessly write/read cells, format, and navigate.",
+    "description": "Strictly for LOCAL desktop Excel files (.xlsx). Do not use this for online spreadsheets. Natively control Microsoft Excel (COM integration). Use this INSTEAD of computer_control when working in Excel. Flawlessly write/read cells, format, and navigate.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

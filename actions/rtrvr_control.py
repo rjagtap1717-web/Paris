@@ -93,7 +93,7 @@ def rtrvr_control(parameters: dict, player=None, session_memory=None) -> str:
 TOOL = {
     "name": "rtrvr_control",
     "scope": "local",
-    "description": "Automate the web using Retriever AI. Best for complex DOM extraction, bypassing Captchas, and interacting with authenticated sites (via 'extension' target). NOTE: If there is ambiguity (e.g. multiple accounts to choose from), return [CONFIRMATION_PENDING] and ask the user BEFORE calling this.",
+    "description": "Use this for web-based spreadsheets (Google Sheets, Office 365 Web) or collaborative cloud documents. Automate the web using Retriever AI. Best for complex DOM extraction, bypassing Captchas, and interacting with authenticated sites (via 'extension' target). NOTE: If there is ambiguity (e.g. multiple accounts to choose from), return [CONFIRMATION_PENDING] and ask the user BEFORE calling this.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
