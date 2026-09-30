@@ -17,6 +17,8 @@ def powerpoint_controller(parameters: dict, response=None, player=None, session_
     content = parameters.get("content", "")
     layout = parameters.get("layout", "title_and_content").lower()
     file_path = parameters.get("file_path", "")
+    theme_name = parameters.get("theme_name", "")
+    image_path = parameters.get("image_path", "")
     
     try:
         pythoncom.CoInitialize()
@@ -106,6 +108,50 @@ def powerpoint_controller(parameters: dict, response=None, player=None, session_
             pres.Slides(slide_index).Select()
             return f"Moved view to slide {slide_index}."
             
+        elif action == "apply_theme":
+            if not theme_name:
+                return "Please provide 'theme_name' (e.g., 'Facet', 'Gallery', 'Ion' or full path to .thmx)."
+            import os
+            search_dirs = [
+                os.environ.get("ProgramFiles", "C:\\Program Files") + r"\Microsoft Office\root\Document Themes 16",
+                os.environ.get("ProgramFiles", "C:\\Program Files") + r"\Microsoft Office\Document Themes 15",
+                os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)") + r"\Microsoft Office\root\Document Themes 16",
+                os.path.join(os.environ.get("AppData", ""), r"Microsoft\Templates\Document Themes")
+            ]
+            theme_path_found = None
+            if os.path.isabs(theme_name) and os.path.exists(theme_name):
+                theme_path_found = theme_name
+            else:
+                for d in search_dirs:
+                    if os.path.exists(d):
+                        for f in os.listdir(d):
+                            if theme_name.lower() in f.lower() and f.endswith(".thmx"):
+                                theme_path_found = os.path.join(d, f)
+                                break
+                    if theme_path_found:
+                        break
+            
+            if theme_path_found:
+                pres.ApplyTheme(theme_path_found)
+                return f"Applied theme: {os.path.basename(theme_path_found)}"
+            else:
+                return f"Could not find theme matching '{theme_name}'. Try using a common theme name or full .thmx path."
+                
+        elif action == "add_image":
+            import os
+            if not slide_index or not image_path:
+                return "Please provide 'slide_index' and 'image_path'."
+            if not os.path.exists(image_path):
+                return f"Image file not found: {image_path}"
+            
+            slide = pres.Slides(slide_index)
+            slide.Select()
+            
+            # Default placement: center-ish, let PowerPoint auto-scale or we put it at 100,100
+            # LinkToFile=False(0), SaveWithDocument=True(-1)
+            pic = slide.Shapes.AddPicture(FileName=image_path, LinkToFile=0, SaveWithDocument=-1, Left=100, Top=150)
+            return f"Added image {os.path.basename(image_path)} to slide {slide_index}."
+            
         elif action == "save":
             if file_path:
                 pres.SaveAs(file_path)
@@ -135,7 +181,7 @@ TOOL = {
         "properties": {
             "action": {
                 "type": "STRING",
-                "description": "new | add_slide | update_slide | read_slide | go_to_slide | save"
+                "description": "new | add_slide | update_slide | read_slide | go_to_slide | apply_theme | add_image | save"
             },
             "slide_index": {
                 "type": "INTEGER",
@@ -156,6 +202,14 @@ TOOL = {
             "file_path": {
                 "type": "STRING",
                 "description": "File path for save action"
+            },
+            "theme_name": {
+                "type": "STRING",
+                "description": "For apply_theme: name of the theme (e.g. 'Gallery', 'Facet', 'Ion') or full path to a .thmx file"
+            },
+            "image_path": {
+                "type": "STRING",
+                "description": "For add_image: absolute path to the image file to insert into the slide"
             }
         },
         "required": ["action"]

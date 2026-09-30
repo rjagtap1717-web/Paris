@@ -149,7 +149,7 @@ def _desktop_send(app_name: str, receiver: str, message: str) -> str:
     time.sleep(0.3)
     return f"Message sent to {receiver} via {app_name}."
 
-def _send_whatsapp(receiver: str, message: str) -> str:
+def _send_whatsapp(receiver: str, message: str, file_path: str = None) -> str:
     if not _open_app("WhatsApp"):
         return "Could not open WhatsApp."
 
@@ -158,7 +158,6 @@ def _send_whatsapp(receiver: str, message: str) -> str:
     os_name = _get_os()
     
     # In modern WhatsApp Desktop, Ctrl+N (or Cmd+N) reliably opens the New Chat / Global Search
-    # This is much safer than Ctrl+F which sometimes searches inside an existing open chat.
     new_chat_hotkey = ("command", "n") if os_name == "mac" else ("ctrl", "n")
     pyautogui.hotkey(*new_chat_hotkey)
     time.sleep(1.0)
@@ -172,25 +171,46 @@ def _send_whatsapp(receiver: str, message: str) -> str:
     pyautogui.press("enter")
     time.sleep(1.0) # Wait for chat window to transition
     
-    _paste_text(message)
-    time.sleep(0.2)
-    pyautogui.press("enter")
-    time.sleep(0.3)
+    import os
+    if file_path and os.path.exists(file_path) and os_name == "windows":
+        import subprocess
+        # Use PowerShell to copy the physical file to the Windows Clipboard
+        subprocess.run(["powershell", "-command", f"Set-Clipboard -Path '{file_path}'"], shell=True)
+        time.sleep(0.5)
+        
+        # Paste the file into WhatsApp
+        pyautogui.hotkey("ctrl", "v")
+        time.sleep(1.5) # Wait for the image/document preview window to pop up
+        
+        # If there is a text message, paste it into the caption box
+        if message:
+            _paste_text(message)
+            time.sleep(0.5)
+            
+        pyautogui.press("enter") # Sends the file with the caption
+        time.sleep(1.0)
+    else:
+        if message:
+            _paste_text(message)
+            time.sleep(0.2)
+            pyautogui.press("enter")
+            time.sleep(0.3)
     
-    return f"Message sent to {receiver} via WhatsApp."
+    status = f"Message sent to {receiver} via WhatsApp."
+    if file_path:
+        status = f"File and message sent to {receiver} via WhatsApp."
+    return status
 
-def _send_telegram(receiver: str, message: str) -> str:
+def _send_telegram(receiver: str, message: str, **kwargs) -> str:
     return _desktop_send("Telegram", receiver, message)
 
-def _send_signal(receiver: str, message: str) -> str:
+def _send_signal(receiver: str, message: str, **kwargs) -> str:
     return _desktop_send("Signal", receiver, message)
 
-
-def _send_discord(receiver: str, message: str) -> str:
+def _send_discord(receiver: str, message: str, **kwargs) -> str:
     return _desktop_send("Discord", receiver, message)
 
-
-def _send_instagram(receiver: str, message: str) -> str:
+def _send_instagram(receiver: str, message: str, **kwargs) -> str:
     _require_pyautogui()
 
     if not _open_browser_url("https://www.instagram.com/direct/new/"):
@@ -218,7 +238,7 @@ def _send_instagram(receiver: str, message: str) -> str:
     return f"Message sent to {receiver} via Instagram."
 
 
-def _send_messenger(receiver: str, message: str) -> str:
+def _send_messenger(receiver: str, message: str, **kwargs) -> str:
     _require_pyautogui()
 
     if not _open_browser_url("https://www.messenger.com/"):
@@ -254,7 +274,7 @@ def _resolve_platform(platform_str: str):
     for keywords, handler in _PLATFORM_MAP:
         if any(k in key for k in keywords):
             return handler
-    return lambda r, m: _desktop_send(platform_str.strip().title(), r, m)
+    return lambda r, m, **kwargs: _desktop_send(platform_str.strip().title(), r, m)
 
 
 def send_message(
@@ -267,22 +287,23 @@ def send_message(
     receiver     = params.get("receiver", "").strip()
     message_text = params.get("message_text", "").strip()
     platform     = params.get("platform", "whatsapp").strip()
+    file_path    = params.get("file_path", "").strip()
 
     if not receiver:
         return "Please specify a recipient."
-    if not message_text:
-        return "Please specify the message content."
+    if not message_text and not file_path:
+        return "Please specify the message content or a file to attach."
     if not _PYAUTOGUI:
         return "PyAutoGUI is not installed — cannot control the desktop."
 
     preview = message_text[:50] + ("…" if len(message_text) > 50 else "")
-    print(f"[SendMessage] 📨 {platform} → {receiver}: {preview}")
+    print(f"[SendMessage] 📨 {platform} → {receiver}: {preview} (File: {file_path})")
     if player:
         player.write_log(f"[msg] {platform} → {receiver}")
 
     try:
         handler = _resolve_platform(platform)
-        result  = handler(receiver, message_text)
+        result  = handler(receiver, message_text, file_path=file_path)
     except Exception as e:
         result = f"Could not send message: {e}"
 
@@ -312,11 +333,14 @@ TOOL = {
             "platform": {
                 "type": "STRING",
                 "description": "Platform: WhatsApp, Telegram, etc."
+            },
+            "file_path": {
+                "type": "STRING",
+                "description": "Optional absolute path to a file (image, doc, video) to attach and send."
             }
         },
         "required": [
             "receiver",
-            "message_text",
             "platform"
         ]
     },
