@@ -996,7 +996,7 @@ class LogWidget(QTextEdit):
         self.setFont(QFont("Courier New", 9))
         self.setStyleSheet(f"""
             QTextEdit {{
-                background: {C.PANEL};
+                background: rgba(1, 13, 20, 0.3);
                 color: {C.TEXT};
                 border: 1px solid {C.BORDER};
                 border-radius: 4px;
@@ -4039,7 +4039,7 @@ class MainWindow(QMainWindow):
 
         w = QWidget()
         w.setFixedWidth(_RIGHT_W)
-        w.setStyleSheet(f"background: rgba(0, 10, 20, 0.65); border-left: 1px solid {C.BORDER};")
+        w.setStyleSheet(f"background: rgba(0, 10, 20, 0.2); border-left: 1px solid {C.BORDER};")
         lay = QVBoxLayout(w)
         lay.setContentsMargins(8, 8, 8, 8)
         lay.setSpacing(6)
