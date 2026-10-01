@@ -20,7 +20,7 @@ def system_power(parameters: dict, **kwargs) -> str:
 TOOL = {
     "name": "system_power",
     "scope": "local",
-    "description": "Use this to restart yourself to apply new code changes, or to shut yourself down completely if the user asks.",
+    "description": "Use this to restart yourself to apply new code changes, or to shut yourself down completely if the user asks. CRITICAL: You MUST ask the user for explicit confirmation before calling this tool. (e.g. 'Are you sure you want me to restart?'). Do not execute this tool until they say yes.",
     "parameters": {
         "type": "OBJECT",
         "properties": {
