@@ -1,17 +1,16 @@
 import json
 import abc
-from typing import Generator
+from typing import Generator, Optional
 import requests
-import google.generativeai as genai
 
 class LLMProvider(abc.ABC):
     @abc.abstractmethod
-    def call(self, messages: list, tools: list | None = None, timeout: int = 120) -> dict:
+    def call(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> dict:
         """Returns {'content': str, 'tool_calls': list}"""
         pass
 
     @abc.abstractmethod
-    def stream(self, messages: list, tools: list | None = None, timeout: int = 120) -> Generator[dict, None, None]:
+    def stream(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> Generator[dict, None, None]:
         """Yields {'type': 'sentence', 'text': str} and finishes with {'type': 'done', 'content': str, 'tool_calls': list}"""
         pass
 
@@ -20,7 +19,7 @@ class OllamaProvider(LLMProvider):
         self.url = url.rstrip("/")
         self.model = model
 
-    def call(self, messages: list, tools: list | None = None, timeout: int = 120) -> dict:
+    def call(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> dict:
         endpoint = f"{self.url}/api/chat"
         payload = {"model": self.model, "messages": messages, "stream": False}
         if tools: payload["tools"] = tools
@@ -29,7 +28,7 @@ class OllamaProvider(LLMProvider):
         msg = resp.json().get("message", {})
         return {"content": (msg.get("content") or "").strip(), "tool_calls": msg.get("tool_calls") or []}
 
-    def stream(self, messages: list, tools: list | None = None, timeout: int = 120) -> Generator[dict, None, None]:
+    def stream(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> Generator[dict, None, None]:
         # Basic mock-up for Ollama stream
         raise NotImplementedError("Streaming not yet ported in this refactor.")
 
@@ -38,7 +37,7 @@ class OpenAIProvider(LLMProvider):
         self.api_key = api_key
         self.model = model
 
-    def call(self, messages: list, tools: list | None = None, timeout: int = 120) -> dict:
+    def call(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> dict:
         endpoint = "https://api.openai.com/v1/chat/completions"
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         payload = {"model": self.model, "messages": messages, "stream": False}
@@ -48,7 +47,7 @@ class OpenAIProvider(LLMProvider):
         choice = resp.json().get("choices", [{}])[0].get("message", {})
         return {"content": (choice.get("content") or "").strip(), "tool_calls": choice.get("tool_calls") or []}
 
-    def stream(self, messages: list, tools: list | None = None, timeout: int = 120) -> Generator[dict, None, None]:
+    def stream(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> Generator[dict, None, None]:
         raise NotImplementedError()
 
 class AnthropicProvider(LLMProvider):
@@ -56,21 +55,35 @@ class AnthropicProvider(LLMProvider):
         self.api_key = api_key
         self.model = model
         
-    def call(self, messages: list, tools: list | None = None, timeout: int = 120) -> dict:
+    def call(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> dict:
         # Implementation for Anthropic API
         raise NotImplementedError()
         
-    def stream(self, messages: list, tools: list | None = None, timeout: int = 120) -> Generator[dict, None, None]:
+    def stream(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> Generator[dict, None, None]:
         raise NotImplementedError()
 
 class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str, model: str = "gemini-1.5-pro"):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
+        pass
 
-    def call(self, messages: list, tools: list | None = None, timeout: int = 120) -> dict:
+    def call(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> dict:
         # Implementation for Gemini API
         raise NotImplementedError()
 
-    def stream(self, messages: list, tools: list | None = None, timeout: int = 120) -> Generator[dict, None, None]:
+    def stream(self, messages: list, tools: Optional[list] = None, timeout: int = 120) -> Generator[dict, None, None]:
         raise NotImplementedError()
+
+def get_default_provider() -> LLMProvider:
+    return OllamaProvider()
+
+def call_llm_text(prompt: str, system: str = "") -> str:
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+    provider = get_default_provider()
+    return provider.call(messages)["content"]
+
+def call_llm(messages: list, tools: Optional[list] = None) -> dict:
+    provider = get_default_provider()
+    return provider.call(messages, tools=tools)

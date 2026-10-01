@@ -148,7 +148,8 @@ TOOL = {
                 "type": "STRING",
                 "description": "Which service to check. Options: 'all', 'openrouter', 'rtrvr', 'gemini'. Defaults to 'all'."
             }
-        }
+        },
+        "required": ["service"]
     },
     "handler": check_token_balance,
 }

@@ -76,14 +76,36 @@ class ActionRegistry:
 
     # -- called by main.py at LiveConnectConfig build time --
     def get_tool_declarations(self) -> list[dict]:
+        """Return only the declarations for actions whose skill pack is enabled."""
+        try:
+            from core.skill_manager import get_skill_for_tool
+            from memory.config_manager import get_skill_enabled
+            _skill_filter = True
+        except ImportError:
+            _skill_filter = False
+
         out = []
         for rec in self._actions.values():
+            if _skill_filter:
+                skill = get_skill_for_tool(rec.name)
+                if not get_skill_enabled(skill):
+                    continue  # skill disabled — hide declaration from LLM
             decl = {"name": rec.name, "description": rec.description,
                     "parameters": rec.parameters}
             if rec.behavior:
                 decl["behavior"] = rec.behavior
             out.append(decl)
         return out
+
+    # -- called by ui.py to render the Skills panel --
+    def list_skills_for_ui(self) -> list[dict]:
+        """Delegates to skill_manager with the live config resolver."""
+        try:
+            from core.skill_manager import list_skills_for_ui as _lsfu
+            from memory.config_manager import get_skill_enabled
+            return _lsfu(get_skill_enabled)
+        except ImportError:
+            return []
 
     def has(self, name: str) -> bool:
         return name in self._actions
@@ -107,8 +129,19 @@ class ActionRegistry:
         if rec is None or not rec.valid:
             return f"Action '{name}' is not available."
         ctx = ctx or {}
-        
-        # 0. API Spend Cap Check
+
+        # 0a. Skill gate — if the skill is disabled, reject execution too
+        try:
+            from core.skill_manager import get_skill_for_tool
+            from memory.config_manager import get_skill_enabled
+            skill = get_skill_for_tool(name)
+            if not get_skill_enabled(skill):
+                return (f"The '{skill}' skill pack is currently disabled. "
+                        f"Enable it in Settings \u2192 Skills to use {name}.")
+        except ImportError:
+            pass
+
+        # 0b. API Spend Cap Check
         try:
             from core.spend_governor import check_spend_cap, record_tool_call
             cap_err = check_spend_cap(name)

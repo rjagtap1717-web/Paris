@@ -30,7 +30,7 @@ def office_suite(parameters: dict, response=None, player=None, session_memory=No
 TOOL = {
     "name": "office_suite",
     "scope": "local",
-    "description": "Unified tool to control local Microsoft Office apps (Word, Excel, PowerPoint) via COM integration. Use this INSTEAD of computer_control when working in Office. Flawlessly write/read cells, format, add slides, or type docs natively.",
+    "description": "Control Microsoft Office (Word, Excel, PowerPoint) for opening, editing, saving and extracting text or data. Uses COM automation on Windows; requires Office installed.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

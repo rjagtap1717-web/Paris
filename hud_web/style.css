@@ -1,0 +1,177 @@
+:root {
+    --color-primary: #ff8c00;
+    --color-secondary: #00d4ff;
+    --color-accent: #ff3333;
+    --bg-color: transparent;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+.hud-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding-left: 148px;
+    padding-right: 340px;
+    box-sizing: border-box;
+    box-shadow: inset 0 0 40px rgba(0, 212, 255, 0.15), inset 0 0 100px rgba(0, 13, 20, 0.8);
+}
+
+/* Orb */
+.orb-wrapper {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#plasma-core {
+    position: absolute;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    filter: drop-shadow(0 0 20px var(--color-primary)) blur(4px);
+    transition: transform 0.2s ease-out, filter 0.2s ease-out;
+}
+
+/* Rings */
+.rings-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    perspective: 800px;
+}
+
+.ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    fill: none;
+    stroke: var(--color-secondary);
+    stroke-width: 2;
+    opacity: 0.6;
+    transform-style: preserve-3d;
+    transition: stroke 0.4s ease;
+}
+
+.ring-1 {
+    width: 100%;
+    height: 100%;
+    stroke-dasharray: 400 100;
+    animation: spin1 20s linear infinite;
+}
+
+.ring-2 {
+    width: 80%;
+    height: 80%;
+    stroke-dasharray: 200 50;
+    stroke-width: 3;
+    animation: spin2 15s linear infinite reverse;
+}
+
+.ring-3 {
+    width: 60%;
+    height: 60%;
+    stroke: var(--color-primary);
+    stroke-dasharray: 100 20;
+    animation: spin3 10s linear infinite;
+}
+
+@keyframes spin1 { 100% { transform: translate(-50%, -50%) rotateZ(360deg) rotateX(60deg); } }
+@keyframes spin2 { 100% { transform: translate(-50%, -50%) rotateZ(360deg) rotateY(45deg); } }
+@keyframes spin3 { 100% { transform: translate(-50%, -50%) rotateZ(360deg) rotateX(-30deg) rotateY(30deg); } }
+
+/* Satellites */
+.satellites-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    animation: orbit 10s linear infinite;
+}
+
+.satellite {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: var(--color-accent);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--color-accent);
+}
+
+.sat-1 { top: 10%; left: 50%; }
+.sat-2 { bottom: 20%; right: 10%; }
+.sat-3 { bottom: 20%; left: 10%; }
+
+@keyframes orbit {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Waveform */
+.waveform {
+    margin-top: 40px;
+    display: flex;
+    gap: 4px;
+    height: 60px;
+    align-items: flex-end;
+}
+
+.bar {
+    width: 6px;
+    background-color: var(--color-secondary);
+    border-radius: 3px;
+    height: 10%;
+    transition: height 0.05s ease, background-color 0.4s ease;
+}
+
+/* States */
+body.state-speaking .ring-1,
+body.state-speaking .ring-2 {
+    stroke: var(--color-primary);
+    animation-duration: 4s;
+}
+
+body.state-speaking .ring-3 {
+    animation-duration: 2s;
+}
+
+body.state-speaking .bar {
+    background-color: var(--color-primary);
+}
+
+body.state-speaking #plasma-core {
+    filter: drop-shadow(0 0 40px var(--color-primary)) blur(2px);
+    transform: scale(1.2);
+}
+
+body.state-listening .ring-1,
+body.state-listening .ring-2 {
+    stroke: var(--color-secondary);
+    animation-duration: 8s;
+}
+
+body.state-listening .bar {
+    background-color: var(--color-secondary);
+}
+
+body.state-listening #plasma-core {
+    filter: drop-shadow(0 0 30px var(--color-secondary)) blur(3px);
+    transform: scale(1.1);
+}

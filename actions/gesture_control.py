@@ -28,6 +28,12 @@ def is_open_palm(hand_landmarks):
 def gesture_control(parameters: dict, player=None, speak=None, **kwargs) -> str:
     global _gesture_thread, _stop_gestures
     
+    action = parameters.get("action", "start")
+    
+    if action == "stop":
+        _stop_gestures = True
+        return "Gesture control deactivated. Camera released."
+        
     try:
         import cv2
         import numpy as np
@@ -36,12 +42,6 @@ def gesture_control(parameters: dict, player=None, speak=None, **kwargs) -> str:
         from mediapipe.python.solutions import hands as mp_hands
     except ImportError:
         return "Error: The gesture control module requires mediapipe. Please run 'pip install mediapipe opencv-python pyautogui' first."
-        
-    action = parameters.get("action", "start")
-    
-    if action == "stop":
-        _stop_gestures = True
-        return "Gesture control deactivated. Camera released."
         
     if _gesture_thread and _gesture_thread.is_alive():
         return "Gesture control is already active and monitoring your hands."

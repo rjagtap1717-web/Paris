@@ -812,11 +812,7 @@ def file_controller(
 TOOL = {
     "name": "file_controller",
     "scope": "destructive",
-    "description": (
-        "Manages files and folders: list, create, delete, move, copy, rename, read, write, find, disk usage. "
-        "NOTE: create_file natively supports creating true Microsoft Word (.docx) documents! Just pass the text content and use the .docx extension. "
-        "For spreadsheets, create .csv files instead of .xlsx."
-    ),
+    "description": "File and folder management: list, create, delete, move, copy, read, write and monitor changes. Supports recursive ops, glob patterns, and safety guards.",
     "parameters": {
         "type": "OBJECT",
         "properties": {

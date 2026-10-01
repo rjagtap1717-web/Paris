@@ -624,8 +624,12 @@ class ParisLive:
             notify=lambda msg: self.ui.write_log(f"SYS: {msg}"),
         )
         self.ui.get_plugins = self._plugin_registry.list_for_ui
-        self.ui.get_plugin_settings = self._plugin_registry.settings_schemas  # ⚙ settings tab
+        self.ui.get_plugin_settings = self._plugin_registry.settings_schemas  # settings tab
         self.ui.request_say = self.plugin_say   # plugins: mid-task speech channel
+
+        # Skills panel — gives the UI a live view of skill packs and a save hook
+        self.ui.get_skills = self._action_registry.list_skills_for_ui
+        self.ui.save_skill_enabled = self._on_skill_toggle
 
         # ── Wake word ────────────────────────────────────────────────────────
         # _awake gates the mic (see _listen_audio) and the background speakers.
@@ -635,7 +639,7 @@ class ParisLive:
         self._wake_detector: WakeWordDetector | None = None
         self._mic_rolling_buffer = []
         self._ensure_wake_detector()
-        self._wake_sleep_timeout = WAKE_SLEEP_TIMEOUT
+        self._wake_sleep_timeout = WAKE_SLEEP_TIMEOUT if self._wake_enabled else None
 
         # Restore the saved push-to-talk preference. Doing it here rather than
         # in __init__ means the hotkey thread only exists once there is a
@@ -819,6 +823,32 @@ class ParisLive:
             asyncio.run_coroutine_threadsafe(_say(), loop)
         except Exception as e:
             print(f"[PluginSay] {e}")
+
+    def _on_skill_toggle(self, skill_name: str, enabled: bool) -> None:
+        """
+        Called by the UI when the user flips a skill switch.
+        Persists the new state, busts the config cache so the next session
+        reconnect injects the updated tool list, and echoes the change into
+        the active session so Paris can acknowledge it naturally.
+        """
+        try:
+            from memory.config_manager import save_skill_enabled
+            save_skill_enabled(skill_name, enabled)
+        except Exception as e:
+            print(f"[Skills] Failed to save skill state: {e}")
+            return
+
+        # Bust the 60-second config cache so _build_config() re-reads the full
+        # tool list with the new skill state on the very next reconnect.
+        if hasattr(self, "_cached_config_time"):
+            self._cached_config_time = 0
+
+        state_word = "enabled" if enabled else "disabled"
+        print(f"[Skills] '{skill_name}' skill {state_word}.")
+        self.speak(
+            f"System: The '{skill_name}' skill pack has been {state_word}. "
+            f"The change takes effect on the next reconnect."
+        )
 
     def _log_to_history(self, role: str, text: str):
         """Append a single turn to the persistent JSONL session history."""
@@ -1196,6 +1226,19 @@ class ParisLive:
         parts = [time_ctx, dev_ctx, identity_ctx]
         if mem_str:
             parts.append(mem_str)
+
+        # Inject a compact skill-pack summary so the model knows which capability
+        # groups are live — without reading every individual tool declaration.
+        try:
+            from core.skill_manager import describe_active_skills
+            from memory.config_manager import get_skill_enabled
+            _skills_ctx = describe_active_skills(get_skill_enabled)
+            parts.append(_skills_ctx)
+            _active_tool_count = len(_all_decls)
+            print(f"[Skills] {_active_tool_count} tool declarations injected into session.")
+        except Exception:
+            pass
+
         parts.append(sys_prompt)
 
         cfg = dict(
@@ -2604,6 +2647,15 @@ class ParisLive:
                     continue
 
                 err_str = str(e)
+                if "1011" in err_str:
+                    self._consecutive_1011 = getattr(self, "_consecutive_1011", 0) + 1
+                    backoff = min(10 * (2 ** (self._consecutive_1011 - 1)), 60)
+                    self._conn_backoff = backoff
+                    print(f"[PARIS] 🔗 1011 error – backing off {backoff}s")
+                    continue
+                else:
+                    self._consecutive_1011 = 0
+                    
                 print(f"[PARIS] Error ({type(e).__name__}): {e}")
                 traceback.print_exc()
 
@@ -2669,7 +2721,10 @@ class ParisLive:
                     asyncio.create_task(self._save_session_summary())
 
             self.set_speaking(False)
-            self.ui.set_state("SLEEPING")
+            if self._wake_enabled and getattr(self, "_wake_sleep_timeout", None):
+                self.ui.set_state("SLEEPING")
+            else:
+                self.ui.set_state("LISTENING")
 
             if self._dashboard:
                 await self._dashboard.broadcast({"type": "status", "state": "sleeping"})

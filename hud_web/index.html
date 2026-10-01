@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PARIS HUD</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="hud-container">
+        <!-- Central Orb -->
+        <div class="orb-wrapper">
+            <canvas id="plasma-core"></canvas>
+            
+            <div class="rings-container">
+                <svg class="ring ring-1" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="90"></circle>
+                </svg>
+                <svg class="ring ring-2" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="70"></circle>
+                </svg>
+                <svg class="ring ring-3" viewBox="0 0 200 200">
+                    <circle cx="100" cy="100" r="50"></circle>
+                </svg>
+            </div>
+
+            <div class="satellites-container">
+                <div class="satellite sat-1"></div>
+                <div class="satellite sat-2"></div>
+                <div class="satellite sat-3"></div>
+            </div>
+        </div>
+
+        <!-- Waveform Visualizer -->
+        <div class="waveform" id="waveform">
+            <!-- Bars generated via JS -->
+        </div>
+    </div>
+
+    <!-- Qt WebChannel -->
+    <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

@@ -13,7 +13,7 @@ def _get_today_str() -> str:
 def check_spend_cap(tool_name: str) -> str | None:
     """Returns an error string if the AI has hit its limit, else None."""
     # Always allow these safe diagnostic tools even if cap is reached
-    if tool_name in ["read_logs", "send_message", "search_history", "check_token_balance"]:
+    if tool_name in ["read_logs", "send_message", "search_history", "check_token_balance", "ambient_presence", "gesture_control"]:
         return None
         
     if not SPEND_FILE.parent.exists():

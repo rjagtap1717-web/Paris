@@ -382,3 +382,42 @@ def save_plugin_enabled(plugin_name: str, enabled: bool) -> None:
     plugins_cfg[plugin_name] = enabled
     data["plugins_enabled"] = plugins_cfg
     CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")
+
+
+# -- Skill pack enable/disable ------------------------------------------------
+# Skills work like plugins: opt-in for non-core ones.  Always-on skills (core)
+# are never written to the config — they are unconditionally True.
+
+def get_skill_enabled(skill_name: str) -> bool:
+    """Return whether a skill pack is active.  Always-on skills are always True."""
+    try:
+        from core.skill_manager import is_skill_always_on, get_skill_default
+        if is_skill_always_on(skill_name):
+            return True
+        default = get_skill_default(skill_name)
+    except ImportError:
+        default = True
+    return load_api_keys().get("skills_enabled", {}).get(skill_name, default)
+
+
+def save_skill_enabled(skill_name: str, enabled: bool) -> None:
+    """Persist the enabled state for a skill pack (always-on skills are ignored)."""
+    try:
+        from core.skill_manager import is_skill_always_on
+        if is_skill_always_on(skill_name):
+            return
+    except ImportError:
+        pass
+    ensure_config_dir()
+    data: dict = {}
+    if CONFIG_FILE.exists():
+        try:
+            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+    skills = data.get("skills_enabled")
+    if not isinstance(skills, dict):
+        skills = {}
+    skills[skill_name] = bool(enabled)
+    data["skills_enabled"] = skills
+    CONFIG_FILE.write_text(json.dumps(data, indent=4), encoding="utf-8")

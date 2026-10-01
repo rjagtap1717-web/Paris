@@ -41,6 +41,9 @@ async def gate_tool_call(tool_name: str, tool_args: dict, context_info: str = ""
     Evaluates a tool call using Jev.
     Returns (outcome, reason) where outcome is "approve", "block", "review", or "exempt".
     """
+    if tool_name == 'system_power':
+        return "review", "Critical tool 'system_power' requires explicit user confirmation."
+
     # User requested to disable Jev Gate to remove all restrictions and network lag.
     return "exempt", "Jev Gate disabled by user request."
     if tool_scope == "exempt":
