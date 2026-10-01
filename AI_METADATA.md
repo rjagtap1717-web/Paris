@@ -53,5 +53,9 @@ Modular capabilities that the assistant can invoke.
 ## Plugins (`plugins/`)
 *   `_template.py`: A drop-in template for creating new custom skills.
 
+## Documentation & History (`docs/`)
+*   `agent_history.md`: Chronological log of sessions, architectural decisions, and newly implemented features.
+*   `error_registry.md`: Append-only list of critical bugs/crashes, their root causes, fixes, and warnings on what NOT to revert.
+
 ---
 **Usage Tip for AI**: Use `view_file` on these specific paths rather than running a global `grep_search` when dealing with known features. Python 3.9 compatibility rules apply (`from typing import Optional, Union`).
