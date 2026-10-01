@@ -1,4 +1,5 @@
 import sys
+import os
 import time
 
 def system_power(parameters: dict, **kwargs) -> str:
@@ -7,12 +8,12 @@ def system_power(parameters: dict, **kwargs) -> str:
     if action == "restart":
         print("[PARIS] Initiating self-restart sequence (Exit Code 42)...")
         time.sleep(1)
-        sys.exit(42)
+        os._exit(42)
         
     elif action == "shutdown":
         print("[PARIS] Initiating graceful shutdown (Exit Code 0)...")
         time.sleep(1)
-        sys.exit(0)
+        os._exit(0)
         
     return "Invalid action. Use 'restart' or 'shutdown'."
 
